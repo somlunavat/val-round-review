@@ -40,7 +40,14 @@ function match(rounds: RoundResult[]): Match {
       isCompleted: true,
     },
     players: [
-      { puuid: "me", teamId: "Blue", characterId: "agent-1", gameName: "Me", tagLine: "1" },
+      {
+        puuid: "me",
+        teamId: "Blue",
+        characterId: "agent-1",
+        gameName: "Me",
+        tagLine: "1",
+        stats: { score: 300, roundsPlayed: 2, kills: 3, deaths: 1, assists: 2 },
+      },
       { puuid: "ally", teamId: "Blue" },
       { puuid: "foe1", teamId: "Red", gameName: "Secret", tagLine: "X" },
       { puuid: "foe2", teamId: "Red" },
@@ -216,6 +223,7 @@ describe("toMatchSummary", () => {
     expect(s).toMatchObject({
       selfTeam: "Blue",
       selfCharacterId: "agent-1",
+      selfStats: { kills: 3, deaths: 1, assists: 2, score: 300 },
       roundsWon: 1,
       roundsLost: 1,
       won: true,

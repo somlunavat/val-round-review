@@ -1,6 +1,8 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import type { ApiError } from "@replay-lab/shared";
 import type { AppDeps } from "./config.js";
+import { RiotApiError } from "./riot/errors.js";
+import { contentRoutes } from "./routes/content.js";
 import { mapRoutes } from "./routes/maps.js";
 import { matchRoutes } from "./routes/matches.js";
 
@@ -16,6 +18,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.get("/api/health", async () => ({ ok: true }));
   matchRoutes(app, deps);
   mapRoutes(app);
+  contentRoutes(app, deps);
 
   app.setNotFoundHandler((_req, reply) => {
     const body: ApiError = { error: { code: "NOT_FOUND", message: "Route not found" } };
@@ -23,6 +26,11 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   });
 
   app.setErrorHandler((err, _req, reply) => {
+    if (err instanceof RiotApiError) {
+      app.log.warn({ msg: "Riot API error", kind: err.kind, status: err.status });
+      const body: ApiError = { error: { code: "UPSTREAM", message: err.message } };
+      return reply.status(502).send(body);
+    }
     app.log.error(
       err instanceof Error ? { msg: err.message, name: err.name } : { msg: "Unknown error" },
     );

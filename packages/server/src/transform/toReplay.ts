@@ -11,6 +11,7 @@ import type {
   MatchReplay,
   MatchSummary,
   PlayerLocations,
+  PlayerStatLine,
   ReplayPlayer,
   RoundEvent,
   RoundReplay,
@@ -24,6 +25,12 @@ import type {
 export const ROUND_TIMER_MS = 100_000;
 /** Spike fuse, used only to place the end of a detonation round. */
 export const SPIKE_FUSE_MS = 45_000;
+
+function statLine(p: Match["players"][number]): PlayerStatLine | undefined {
+  if (!p.stats) return undefined;
+  const { kills, deaths, assists, score } = p.stats;
+  return { kills, deaths, assists, score };
+}
 
 export class NotParticipantError extends Error {
   constructor(matchId: string) {
@@ -225,6 +232,7 @@ export function toMatchReplay(match: Match, selfPuuid: string): MatchReplay {
         team,
         ...(p.characterId ? { characterId: p.characterId } : {}),
         isSelf: p.puuid === selfPuuid,
+        ...(statLine(p) ? { stats: statLine(p) } : {}),
       },
     ];
   });
@@ -254,6 +262,7 @@ export function toMatchSummary(match: Match, selfPuuid: string): MatchSummary {
     ...(match.matchInfo.queueId ? { queueId: match.matchInfo.queueId } : {}),
     selfTeam,
     ...(self?.characterId ? { selfCharacterId: self.characterId } : {}),
+    ...(self && statLine(self) ? { selfStats: statLine(self) } : {}),
     roundsWon,
     roundsLost,
     won: teamWon ?? roundsWon > roundsLost,

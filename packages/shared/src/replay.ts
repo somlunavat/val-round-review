@@ -83,11 +83,20 @@ export type RoundReplay = z.infer<typeof RoundReplaySchema>;
  * Roster entry. Deliberately carries no gameName/tagLine for anyone: the app
  * reviews the signed-in player's own play and must not become a lookup tool.
  */
+export const PlayerStatLineSchema = z.object({
+  kills: z.number(),
+  deaths: z.number(),
+  assists: z.number(),
+  score: z.number(),
+});
+export type PlayerStatLine = z.infer<typeof PlayerStatLineSchema>;
+
 export const ReplayPlayerSchema = z.object({
   puuid: z.string(),
   team: TeamSideSchema,
   characterId: z.string().optional(),
   isSelf: z.boolean(),
+  stats: PlayerStatLineSchema.optional(),
 });
 export type ReplayPlayer = z.infer<typeof ReplayPlayerSchema>;
 
@@ -109,6 +118,7 @@ export const MatchSummarySchema = z.object({
   queueId: z.string().optional(),
   selfTeam: TeamSideSchema,
   selfCharacterId: z.string().optional(),
+  selfStats: PlayerStatLineSchema.optional(),
   roundsWon: z.number(),
   roundsLost: z.number(),
   won: z.boolean(),

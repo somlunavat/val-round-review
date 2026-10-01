@@ -2,12 +2,19 @@ import { describe, expect, it } from "vitest";
 import { ApiErrorSchema, MatchReplaySchema, MatchSummarySchema } from "@replay-lab/shared";
 import { FIXTURE_MATCHES_DIR, SELF_PUUID } from "@replay-lab/fixtures";
 import { buildApp } from "../src/app.js";
+import { EMPTY_CONTENT } from "../src/content/valorantApi.js";
+import { RiotApiError } from "../src/riot/errors.js";
 import { FixtureRiotClient } from "../src/riot/FixtureRiotClient.js";
-import { devSession } from "../src/session.js";
+import { fixedSession } from "../src/session.js";
 
 const riot = new FixtureRiotClient(FIXTURE_MATCHES_DIR);
-const app = buildApp({ riot, session: devSession(SELF_PUUID) });
-const signedOut = buildApp({ riot, session: () => undefined });
+const content = async () => EMPTY_CONTENT;
+const base = { riot, content, maxMatches: 10 };
+const app = buildApp({
+  ...base,
+  session: fixedSession({ source: "fixture", puuid: SELF_PUUID, riotId: "Sample player" }),
+});
+const signedOut = buildApp({ ...base, session: async () => undefined });
 
 describe("app", () => {
   it("answers the health check", async () => {
@@ -61,5 +68,40 @@ describe("app", () => {
   it("serves the map list", async () => {
     const res = await app.inject({ method: "GET", url: "/api/maps" });
     expect(res.statusCode).toBe(200);
+  });
+
+  it("reports the session without the puuid", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/session" });
+    expect(res.json()).toEqual({ source: "fixture", riotId: "Sample player" });
+  });
+
+  it("serves content even when it is unavailable", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/content" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ available: false });
+  });
+
+  it("turns Riot errors into a typed upstream error with a safe message", async () => {
+    const failing = buildApp({
+      ...base,
+      session: async () => {
+        throw new RiotApiError("forbidden", 403);
+      },
+    });
+    const res = await failing.inject({ method: "GET", url: "/api/matches" });
+    expect(res.statusCode).toBe(502);
+    const body = ApiErrorSchema.parse(res.json());
+    expect(body.error.code).toBe("UPSTREAM");
+    expect(body.error.message).toMatch(/production key/);
+  });
+
+  it("limits the list to maxMatches", async () => {
+    const one = buildApp({
+      ...base,
+      maxMatches: 1,
+      session: fixedSession({ source: "fixture", puuid: SELF_PUUID }),
+    });
+    const res = await one.inject({ method: "GET", url: "/api/matches" });
+    expect(res.json()).toHaveLength(1);
   });
 });
