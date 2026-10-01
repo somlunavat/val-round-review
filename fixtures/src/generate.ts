@@ -2,9 +2,9 @@
  * Deterministic fixture match generator.
  *
  * Produces payloads shaped like VAL-MATCH-V1 `MatchDto` (see packages/shared/src/match.ts).
- * Everything is synthetic: puuids, names, weapon/armor ids, and positions. Positions are
- * random points in boxes around Ascent callout locations (see docs/ASSETS.md); they land in
- * the right areas but do not respect walls.
+ * Puuids, names, and positions are synthetic. Agent, weapon, and armor ids are the real
+ * public content UUIDs so the UI can label them. Players move along routes of Ascent callout
+ * points (see docs/ASSETS.md) and jump between waypoints, so snapshots land in playable areas.
  */
 import type {
   Economy,
@@ -21,28 +21,71 @@ export const FIXTURE_MAP = "/Game/Maps/Ascent/Ascent";
 
 type Side = "Blue" | "Red";
 type Vec = { x: number; y: number };
-type Zone = { x: [number, number]; y: [number, number] };
+type Waypoint = { at: number; pos: Vec };
 
-// Boxes around Ascent callout centres (game units).
-const ZONES = {
-  attackSpawn: { x: [-300, 400], y: [-300, 400] }, // Attacker Side Spawn (60, 50)
-  defendSpawn: { x: [1600, 2400], y: [-10100, -9400] }, // Defender Side Spawn (1995, -9745)
-  siteA: { x: [5600, 6700], y: [-7200, -6000] }, // A Site (6154, -6626)
-  siteB: { x: [-2900, -1800], y: [-8100, -7000] }, // B Site (-2344, -7549)
-  mid: { x: [900, 2300], y: [-5000, -4100] }, // Mid Courtyard / Catwalk
-} satisfies Record<string, Zone>;
+// Ascent callout points (game units), from valorant-api.com /v1/maps.
+const P = {
+  atkSpawn: { x: 60, y: 50 },
+  defSpawn: { x: 1995, y: -9745 },
+  aLobby: { x: 4489, y: -3014 },
+  aMain: { x: 5322, y: -4710 },
+  aSite: { x: 6154, y: -6626 },
+  aRafters: { x: 6130, y: -8210 },
+  aGarden: { x: 3774, y: -7551 },
+  aTree: { x: 3981, y: -5939 },
+  bLobby: { x: -1491, y: -1390 },
+  bMain: { x: -1984, y: -5841 },
+  bSite: { x: -2344, y: -7549 },
+  bBoat: { x: -4485, y: -7763 },
+  midTop: { x: 2754, y: -2130 },
+  midCatwalk: { x: 2316, y: -4127 },
+  midCourtyard: { x: 1223, y: -4587 },
+  midBottom: { x: 1122, y: -5952 },
+  midMarket: { x: 1089, y: -7363 },
+  midPizza: { x: 1802, y: -7262 },
+} satisfies Record<string, Vec>;
 
+type SiteName = "A" | "B";
+const SITE_POS: Record<SiteName, Vec> = { A: P.aSite, B: P.bSite };
+const ATTACK_ROUTES: Record<SiteName | "Mid", Vec[]> = {
+  A: [P.aLobby, P.aMain, P.aSite],
+  B: [P.bLobby, P.bMain, P.bSite],
+  Mid: [P.midTop, P.midCatwalk, P.midCourtyard],
+};
+const DEFENSE_ROUTES: Vec[][] = [
+  [P.aGarden, P.aRafters, P.aSite],
+  [P.aGarden, P.aTree, P.aTree],
+  [P.midMarket, P.bSite, P.bSite],
+  [P.midMarket, P.bSite, P.bBoat],
+  [P.midPizza, P.midBottom, P.midBottom],
+];
+
+// Real content UUIDs (valorant-api.com /v1/weapons, /v1/gear, /v1/agents).
 const WEAPONS = {
-  classic: { id: "fx-weapon-classic", cost: 0 },
-  ghost: { id: "fx-weapon-ghost", cost: 500 },
-  spectre: { id: "fx-weapon-spectre", cost: 1600 },
-  vandal: { id: "fx-weapon-vandal", cost: 2900 },
-  operator: { id: "fx-weapon-operator", cost: 4700 },
+  classic: { id: "29a0cfab-485b-f5d5-779a-b59f85e204a8", cost: 0 },
+  ghost: { id: "1baa85b4-4c70-1284-64bb-6481dfc3bb4e", cost: 500 },
+  sheriff: { id: "e336c6b8-418d-9340-d77f-7a9e4cfe0702", cost: 800 },
+  spectre: { id: "462080d1-4035-2937-7c09-27aa2a5c27a7", cost: 1600 },
+  vandal: { id: "9c82e19d-4575-0200-1a81-3eacf00cf872", cost: 2900 },
+  phantom: { id: "ee8e8d15-496b-07ac-e5f6-8fae5d4c7b1a", cost: 2900 },
+  operator: { id: "a03b24d3-4319-996d-0f8c-94bbfba1dfc7", cost: 4700 },
 };
 const ARMOR = {
-  light: { id: "fx-armor-light", cost: 400 },
-  heavy: { id: "fx-armor-heavy", cost: 1000 },
+  light: { id: "4dec83d5-4902-9ab3-bed6-a7a390761157", cost: 400 },
+  heavy: { id: "822bcab2-40a2-324e-c137-e09195ad7692", cost: 1000 },
 };
+const AGENTS = [
+  "add6443a-41bd-e414-f6ad-e58d267f4e95", // Jett
+  "8e253930-4c05-31dd-1b6c-968525494517", // Omen
+  "320b2a48-4d9b-a075-30f1-1f93a9b638fa", // Sova
+  "1e58de9c-4950-5125-93e9-a0aee9f98746", // Killjoy
+  "6f2a04ca-43e0-be17-7f36-b3908627744d", // Skye
+  "f94c3b30-42be-e959-889c-5aa313dba261", // Raze
+  "707eab51-4836-f488-046a-cda6bf494859", // Viper
+  "dade69b4-4f5a-8528-247b-219e5a1facd6", // Fade
+  "117ed9e3-49f3-6512-3ccf-0cada7e3823b", // Cypher
+  "41fb69c1-4189-7b37-f117-bcaf1e96f1bf", // Astra
+];
 
 const ROUND_LIMIT_MS = 100_000;
 const SPIKE_TIMER_MS = 45_000;
@@ -86,8 +129,7 @@ type PlayerState = {
   team: Side;
   credits: number;
   alive: boolean;
-  start: Vec;
-  target: Vec;
+  route: Waypoint[];
   economy: Economy;
   weaponPower: number;
   kills: Kill[];
@@ -102,9 +144,9 @@ export function generateMatch(opts: GenerateOptions): Match {
   const rand = rng(opts.seed);
   const edge = opts.edge ?? {};
   const between = (lo: number, hi: number) => lo + rand() * (hi - lo);
-  const pointIn = (z: Zone): Vec => ({
-    x: Math.round(between(z.x[0], z.x[1])),
-    y: Math.round(between(z.y[0], z.y[1])),
+  const near = (p: Vec, r: number): Vec => ({
+    x: Math.round(p.x + between(-r, r)),
+    y: Math.round(p.y + between(-r, r)),
   });
   const pick = <T>(xs: readonly T[]): T => {
     const x = xs[Math.floor(rand() * xs.length)];
@@ -120,7 +162,6 @@ export function generateMatch(opts: GenerateOptions): Match {
     puuids.Red.push(`fx-${opts.seed}-red-${i}-0000-000000000000`);
   }
 
-  const agents = ["fx-agent-a", "fx-agent-b", "fx-agent-c", "fx-agent-d", "fx-agent-e"];
   const states = new Map<string, PlayerState>();
   for (const team of ["Blue", "Red"] as const) {
     puuids[team].forEach((puuid) =>
@@ -129,8 +170,7 @@ export function generateMatch(opts: GenerateOptions): Match {
         team,
         credits: 800,
         alive: true,
-        start: { x: 0, y: 0 },
-        target: { x: 0, y: 0 },
+        route: [],
         economy: { loadoutValue: 0, remaining: 0, spent: 0 },
         weaponPower: 1,
         kills: [],
@@ -168,8 +208,7 @@ export function generateMatch(opts: GenerateOptions): Match {
     if (isPistol) for (const s of all()) s.credits = 800;
     if (roundNum >= 24) for (const s of all()) s.credits = 5000;
 
-    const site = rand() < 0.5 ? ZONES.siteA : ZONES.siteB;
-    const siteName = site === ZONES.siteA ? "A" : "B";
+    const siteName: SiteName = rand() < 0.5 ? "A" : "B";
 
     // Buy phase.
     for (const s of all()) {
@@ -182,13 +221,18 @@ export function generateMatch(opts: GenerateOptions): Match {
       let armor: { id: string; cost: number } | undefined;
       if (!afk) {
         if (s.credits >= 3900) {
-          weapon = rand() < 0.15 && s.credits >= 5700 ? WEAPONS.operator : WEAPONS.vandal;
+          weapon =
+            rand() < 0.15 && s.credits >= 5700
+              ? WEAPONS.operator
+              : rand() < 0.5
+                ? WEAPONS.vandal
+                : WEAPONS.phantom;
           armor = ARMOR.heavy;
         } else if (s.credits >= 2400 && !isPistol) {
           weapon = WEAPONS.spectre;
           armor = ARMOR.light;
         } else if (s.credits >= 900) {
-          weapon = WEAPONS.ghost;
+          weapon = rand() < 0.5 ? WEAPONS.ghost : WEAPONS.sheriff;
           armor = isPistol ? undefined : ARMOR.light;
         }
         spent = weapon.cost + (armor?.cost ?? 0);
@@ -207,21 +251,37 @@ export function generateMatch(opts: GenerateOptions): Match {
         remaining: s.credits,
         spent,
       };
-      const spawn = s.team === attackers ? ZONES.attackSpawn : ZONES.defendSpawn;
-      s.start = pointIn(spawn);
-      s.target = afk
-        ? s.start
-        : s.team === attackers
-          ? pointIn(rand() < 0.3 ? ZONES.mid : site)
-          : pointIn(pick([ZONES.siteA, ZONES.siteB, ZONES.mid]));
+      const isAttacker = s.team === attackers;
+      const spawn = near(isAttacker ? P.atkSpawn : P.defSpawn, 250);
+      const path = afk
+        ? []
+        : isAttacker
+          ? ATTACK_ROUTES[rand() < 0.25 ? "Mid" : siteName]
+          : pick(DEFENSE_ROUTES);
+      // Waypoints are reached at staggered times; between them the player is at the last one.
+      let at = 0;
+      s.route = [{ at, pos: spawn }];
+      for (const wp of path) {
+        at += Math.round(between(6_000, 12_000));
+        s.route.push({ at, pos: near(wp, 280) });
+      }
     }
 
     const posAt = (s: PlayerState, t: number): Vec => {
-      const k = Math.min(1, t / 35_000);
-      return {
-        x: Math.round(s.start.x + (s.target.x - s.start.x) * k + between(-150, 150)),
-        y: Math.round(s.start.y + (s.target.y - s.start.y) * k + between(-150, 150)),
-      };
+      let best: Waypoint | undefined;
+      for (const wp of s.route) if (wp.at <= t && (!best || wp.at >= best.at)) best = wp;
+      return near(best?.pos ?? P.atkSpawn, 60);
+    };
+    /** After a plant everyone converges on the site: attackers to hold, defenders to retake. */
+    const convergeOnSite = (from: number) => {
+      for (const s of all()) {
+        if (!s.alive || s.puuid === edge.afkPuuid) continue;
+        s.route = s.route.filter((wp) => wp.at <= from);
+        s.route.push({
+          at: from + Math.round(between(4_000, 14_000)),
+          pos: near(SITE_POS[siteName], 600),
+        });
+      }
     };
     const locations = (t: number, extra?: PlayerState): PlayerLocations[] =>
       all()
@@ -274,10 +334,13 @@ export function generateMatch(opts: GenerateOptions): Match {
         planter = p;
         plantTime = Math.round(t + between(1_000, 4_000));
         t = plantTime;
-        p.target = pointIn(site);
-        plantLocation = posAt(p, t);
+        plantLocation = near(SITE_POS[siteName], 250);
+        p.route.push({ at: t, pos: plantLocation });
+        convergeOnSite(t);
         plantLocations = locations(t);
         p.credits += 300;
+        // Planter stays on the spike.
+        p.route = p.route.filter((wp) => wp.at <= t);
         p.score += 80;
         continue;
       }
@@ -291,7 +354,7 @@ export function generateMatch(opts: GenerateOptions): Match {
           if (atk.length === 0 && def.length > 0) {
             defuser = pick(active(def));
             defuseTime = Math.round(t + between(3_500, 7_500));
-            defuser.target = plantLocation ?? defuser.target;
+            if (plantLocation) defuser.route.push({ at: t, pos: plantLocation });
             defuseLocations = locations(defuseTime);
             defuser.score += 80;
             result = "Bomb defused";
@@ -315,6 +378,7 @@ export function generateMatch(opts: GenerateOptions): Match {
       if (planter && atk.length === 0) {
         defuser = pick(active(def));
         defuseTime = Math.round(t + between(3_500, 7_500));
+        if (plantLocation) defuser.route.push({ at: t, pos: plantLocation });
         defuseLocations = locations(defuseTime);
         defuser.score += 80;
         result = "Bomb defused";
@@ -433,7 +497,7 @@ export function generateMatch(opts: GenerateOptions): Match {
     tagLine: "FX1",
     teamId: s.team,
     partyId: `fx-party-${i}`,
-    characterId: agents[i % agents.length] ?? null,
+    characterId: AGENTS[i % AGENTS.length] ?? null,
     stats: {
       score: s.score,
       roundsPlayed: roundResults.length,
@@ -483,13 +547,13 @@ export function generateMatch(opts: GenerateOptions): Match {
 export function fixtureSet(): Match[] {
   return [
     generateMatch({
-      seed: 44,
+      seed: 31,
       matchId: "fx-match-0001-standard",
       gameStartMillis: Date.UTC(2026, 8, 20, 18, 0),
       includeSelf: true,
     }),
     generateMatch({
-      seed: 16,
+      seed: 48,
       matchId: "fx-match-0002-overtime",
       gameStartMillis: Date.UTC(2026, 8, 21, 19, 30),
       includeSelf: true,
@@ -509,7 +573,7 @@ export function fixtureSet(): Match[] {
     }),
     // A match the fixture player was not in: the API must refuse to serve it.
     generateMatch({
-      seed: 38,
+      seed: 3,
       matchId: "fx-match-0004-not-own",
       gameStartMillis: Date.UTC(2026, 8, 23, 21, 0),
       includeSelf: false,
