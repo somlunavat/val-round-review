@@ -1,73 +1,136 @@
 import type { EconomyEntry, ReplayPlayer, TeamSide } from "@replay-lab/shared";
-import { itemLabel } from "../replay/select.js";
+import type { ContentLookup } from "../content/lookup.js";
+import { itemName } from "../content/lookup.js";
+import type { PlayerInfo } from "./playerInfo.js";
 
 type Props = {
   economy: EconomyEntry[];
   players: ReplayPlayer[];
   selfTeam: TeamSide | undefined;
-  labelOf: (puuid: string) => string;
+  player: (puuid: string) => PlayerInfo;
+  lookup: ContentLookup;
   afk: string[];
 };
 
-export function EconomyPanel({ economy, players, selfTeam, labelOf, afk }: Props) {
+/** Labels a team's buy from average loadout value. Thresholds are rough rules of thumb. */
+function buyType(avg: number): string {
+  if (avg >= 3900) return "Full buy";
+  if (avg >= 2000) return "Half buy";
+  if (avg >= 1000) return "Light buy";
+  return "Eco";
+}
+
+export function EconomyPanel({ economy, players, selfTeam, player, lookup, afk }: Props) {
   const byPuuid = new Map(economy.map((e) => [e.puuid, e]));
-  const sides = selfTeam
-    ? [selfTeam, selfTeam === "Blue" ? "Red" : "Blue"]
-    : (["Blue", "Red"] as const);
+  const other: TeamSide = selfTeam === "Red" ? "Blue" : "Red";
+  const sides: TeamSide[] = selfTeam ? [selfTeam, other] : ["Blue", "Red"];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {sides.map((side) => {
         const team = players.filter((p) => p.team === side);
-        const total = team.reduce((sum, p) => sum + (byPuuid.get(p.puuid)?.loadoutValue ?? 0), 0);
+        const known = team.flatMap((p) => byPuuid.get(p.puuid) ?? []);
+        const total = known.reduce((sum, e) => sum + e.loadoutValue, 0);
+        const avg = known.length ? total / known.length : 0;
+        const ally = side === selfTeam;
         return (
-          <table key={side} className="w-full text-sm">
-            <caption
-              className={`mb-1 text-left font-medium ${side === selfTeam ? "text-teal-400" : "text-red-400"}`}
-            >
-              {side === selfTeam ? "Your team" : "Enemy team"} · loadout {total.toLocaleString()}
-            </caption>
-            <thead className="text-xs text-neutral-500">
-              <tr>
-                <th className="text-left font-normal">Player</th>
-                <th className="text-left font-normal">Weapon</th>
-                <th className="text-left font-normal">Armor</th>
-                <th className="text-right font-normal">Loadout</th>
-                <th className="text-right font-normal">Spent</th>
-                <th className="text-right font-normal">Left</th>
-              </tr>
-            </thead>
-            <tbody className="tabular-nums">
+          <section key={side}>
+            <header className="mb-2 flex items-baseline justify-between">
+              <h3
+                className={`font-display text-sm font-bold uppercase tracking-wider ${ally ? "text-ally" : "text-enemy"}`}
+              >
+                {ally ? "Your team" : "Enemy team"}
+              </h3>
+              <span className="text-xs text-muted">
+                {known.length ? `${buyType(avg)} · ` : ""}
+                <span className="font-display font-semibold tabular text-soft">
+                  {total.toLocaleString()}
+                </span>{" "}
+                loadout
+              </span>
+            </header>
+            <ul className="space-y-1">
               {team.map((p) => {
                 const e = byPuuid.get(p.puuid);
+                const weapon = lookup.weapon(e?.weapon);
+                const armor = lookup.armor(e?.armor);
+                const info = player(p.puuid);
                 return (
-                  <tr key={p.puuid} className={p.isSelf ? "text-white" : "text-neutral-300"}>
-                    <td>
-                      {labelOf(p.puuid)}
+                  <li
+                    key={p.puuid}
+                    className={`grid grid-cols-[minmax(0,1fr)_5.5rem_3.5rem] items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${
+                      p.isSelf ? "bg-raised" : "bg-surface/60"
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span
+                        className={`h-6 w-6 shrink-0 overflow-hidden rounded border bg-raised ${ally ? "border-ally/60" : "border-enemy/60"}`}
+                      >
+                        {info.agentIcon && (
+                          <img src={info.agentIcon} alt="" className="h-full w-full object-cover" />
+                        )}
+                      </span>
+                      <span
+                        className={`truncate ${p.isSelf ? "font-semibold text-white" : "text-soft"}`}
+                      >
+                        {info.label}
+                      </span>
                       {afk.includes(p.puuid) && (
-                        <span className="ml-1 text-xs text-yellow-400">AFK</span>
+                        <span className="rounded bg-spike-dim px-1.5 text-[10px] font-semibold text-spike">
+                          AFK
+                        </span>
                       )}
-                    </td>
+                    </span>
                     {e ? (
                       <>
-                        <td>{itemLabel(e.weapon)}</td>
-                        <td>{itemLabel(e.armor)}</td>
-                        <td className="text-right">{e.loadoutValue.toLocaleString()}</td>
-                        <td className="text-right">{e.spent.toLocaleString()}</td>
-                        <td className="text-right">{e.remaining.toLocaleString()}</td>
+                        <span
+                          className="flex items-center gap-1.5"
+                          title={`${itemName(weapon, e.weapon)} · ${itemName(armor, e.armor)}`}
+                        >
+                          {weapon?.icon ? (
+                            <img
+                              src={weapon.icon}
+                              alt={weapon.name}
+                              className="h-4 max-w-16 object-contain"
+                            />
+                          ) : (
+                            <span className="truncate text-xs text-soft">
+                              {itemName(weapon, e.weapon)}
+                            </span>
+                          )}
+                          {e.armor && <ArmorPip heavy={/heavy/i.test(armor?.name ?? "")} />}
+                        </span>
+                        <span className="text-right font-display font-semibold tabular text-white">
+                          {e.loadoutValue.toLocaleString()}
+                        </span>
                       </>
                     ) : (
-                      <td colSpan={5} className="text-neutral-500">
+                      <span className="col-span-2 text-right text-xs text-muted">
                         No economy data
-                      </td>
+                      </span>
                     )}
-                  </tr>
+                  </li>
                 );
               })}
-            </tbody>
-          </table>
+            </ul>
+          </section>
         );
       })}
+      <p className="text-xs text-muted">
+        Loadout is the value of what each player held this round. Buy labels use average loadout
+        (≥3900 full, ≥2000 half, ≥1000 light, otherwise eco).
+      </p>
     </div>
+  );
+}
+
+function ArmorPip({ heavy }: { heavy: boolean }) {
+  return (
+    <span
+      title={heavy ? "Heavy armor" : "Light armor"}
+      className={`ml-auto inline-block h-3.5 w-3 shrink-0 rounded-b-full rounded-t-sm border ${
+        heavy ? "border-sky-300 bg-sky-400/70" : "border-sky-300/70 bg-transparent"
+      }`}
+    />
   );
 }

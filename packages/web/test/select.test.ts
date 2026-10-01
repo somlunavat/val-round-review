@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { MatchReplay, RoundReplay } from "@replay-lab/shared";
 import {
   formatRoundTime,
-  itemLabel,
   killsAtSnapshot,
   plantAt,
   playerLabels,
@@ -61,12 +60,6 @@ describe("formatting", () => {
   it("formats round time as m:ss", () => {
     expect(formatRoundTime(0)).toBe("0:00");
     expect(formatRoundTime(65_432)).toBe("1:05");
-  });
-
-  it("labels fixture items and shortens unknown ids", () => {
-    expect(itemLabel("fx-weapon-vandal")).toBe("Vandal");
-    expect(itemLabel(undefined)).toBe("—");
-    expect(itemLabel("9c82e19d-4575-0200-1a81-3eacf00cf872")).toBe("9c82e19d…");
   });
 
   it("labels players anonymously relative to the viewer", () => {

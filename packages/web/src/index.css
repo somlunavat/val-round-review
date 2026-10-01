@@ -1,1 +1,37 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Chakra Petch", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #0b0e13;
+  --color-surface: #11161d;
+  --color-panel: #161d26;
+  --color-raised: #1d2631;
+  --color-line: #263240;
+  --color-muted: #7d8a99;
+  --color-soft: #b4c0cc;
+
+  --color-ally: #2ee6c0;
+  --color-ally-dim: #0f3b35;
+  --color-enemy: #ff5c64;
+  --color-enemy-dim: #42181c;
+  --color-spike: #ffc83d;
+  --color-spike-dim: #3d2f0c;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-ink font-sans text-neutral-100 antialiased;
+  }
+  ::selection {
+    @apply bg-ally/30;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}

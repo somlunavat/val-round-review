@@ -43,11 +43,18 @@ production builds.
 See `DATA_MODEL.md`. The API has no round end time, so `durationMs` is the latest time the data
 justifies.
 
-## No minimap image in the 2D view
+## Official 2D images under Riot's fan policy (owner decision, 2026-10-01)
 
-valorant-api.com's minimap images are extracted from the game client, so CLAUDE.md §2.3 rules them
-out. The 2D view draws a plain background with callout labels placed via the calibration. Only the
-calibration numbers and callout points come from valorant-api.com (logged in `ASSETS.md`).
+At first the 2D view used no minimap image, because valorant-api.com's images are taken from the
+game client and CLAUDE.md §2.3 ruled them out. The project owner then chose to use the real
+minimap. Riot's "Legal Jibber Jabber" policy allows Riot assets in free fan projects that show its
+notice, so 2D images (minimap, map thumbnails, agent and weapon icons) are now hot-linked from
+valorant-api.com and never committed. 3D assets ripped from the client are still out.
+**CLAUDE.md §2.3 still has the old wording and needs the owner to update it** (the assistant
+isn't allowed to edit CLAUDE.md).
+
+Overlaying the official minimap also checks the calibration by eye: all 22 Ascent callout
+points land on the matching areas of the image.
 
 ## 2D view holds the last snapshot, never blends
 
@@ -57,10 +64,38 @@ drawn yet because its direction convention is unverified.
 
 ## Players are labelled relative to the viewer
 
-"You", "Ally 1–4", "Enemy 1–5", with ally/enemy colours, not Blue/Red. Labels come from roster
-order, so they are stable within a match.
+Ally/enemy colours, not Blue/Red. See "Players labelled by agent" below.
 
 ## Playwright uses the installed Chrome locally
 
 `playwright.config.ts` sets `channel: "chrome"` outside CI to avoid a browser download. CI installs
 Playwright's Chromium.
+
+## Live Riot client before review features (owner request)
+
+The owner asked for real data before the review flags, so the live adapter was moved ahead of the
+CLAUDE.md phase order. It works now, but development keys can't read VAL-MATCH-V1, so real
+matches need an approved production key. Until then the UI shows Riot's 403 with an explanation.
+
+## Owner identity from RIOT_ID until RSO
+
+With no RSO yet, the "signed-in" player is the Riot ID in the server's `.env`, resolved once through
+ACCOUNT-V1. No request can change it, so the API still serves only the owner's own matches. RSO
+replaces this before the app is used by anyone else.
+
+## node:sqlite instead of better-sqlite3
+
+Node 22.5+ ships SQLite (`node:sqlite`). That avoids a native build step and a dependency. It is
+still marked experimental and logs a warning at startup. Switch to better-sqlite3 if the API
+changes.
+
+## Content (names/icons) goes through our server
+
+`GET /api/content` returns normalized agent/weapon/armor/map display data, so the frontend never
+depends on a third-party response shape. It never fails: when valorant-api.com is unreachable it
+returns `available: false` and the UI shows ids and plain styling.
+
+## Players labelled by agent
+
+Map markers and panels show "You", or the agent's name and icon, coloured ally/enemy. Riot names are
+still never sent to the browser. When content is unavailable, labels fall back to "Ally N"/"Enemy N".

@@ -1,6 +1,10 @@
 import type { z } from "zod";
 import {
   ApiErrorSchema,
+  ContentSchema,
+  SessionInfoSchema,
+  type Content,
+  type SessionInfo,
   MatchReplaySchema,
   MatchSummarySchema,
   type MatchReplay,
@@ -40,6 +44,14 @@ export function fetchMatches(): Promise<MatchSummary[]> {
 
 export function fetchReplay(matchId: string): Promise<MatchReplay> {
   return getJson(`/api/matches/${encodeURIComponent(matchId)}`, MatchReplaySchema);
+}
+
+export function fetchSession(): Promise<SessionInfo> {
+  return getJson("/api/session", SessionInfoSchema);
+}
+
+export function fetchContent(): Promise<Content> {
+  return getJson("/api/content", ContentSchema);
 }
 
 export function errorMessage(err: unknown): string {

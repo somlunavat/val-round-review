@@ -59,10 +59,20 @@ export function selfTeam(replay: MatchReplay): TeamSide | undefined {
   return replay.players.find((p) => p.isSelf)?.team;
 }
 
-/** Display text for item ids. Real ids are UUIDs that need VAL-CONTENT-V1; fixtures use readable fakes. */
-export function itemLabel(id: string | undefined): string {
-  if (!id) return "—";
-  const fixture = /^fx-(?:weapon|armor)-(.+)$/.exec(id);
-  if (fixture?.[1]) return fixture[1].charAt(0).toUpperCase() + fixture[1].slice(1);
-  return `${id.slice(0, 8)}…`;
+/** The post-plant window on the timeline, if the spike was planted. */
+export function plantWindow(
+  round: RoundReplay,
+  end: number,
+): { from: number; to: number } | undefined {
+  const plant = round.events.find((e) => e.type === "plant");
+  if (!plant) return undefined;
+  const stop = round.events.find((e) => e.type === "defuse");
+  return { from: plant.t, to: stop?.t ?? end };
+}
+
+/** Players killed at or before `t` this round (known from kill events). */
+export function deadBy(round: RoundReplay, t: number): Set<string> {
+  const dead = new Set<string>();
+  for (const e of round.events) if (e.type === "kill" && e.t <= t) dead.add(e.victim);
+  return dead;
 }
