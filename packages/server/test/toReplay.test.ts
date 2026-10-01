@@ -148,6 +148,7 @@ describe("toMatchReplay", () => {
       bombPlanter: "foe1",
       plantRoundTime: 40_000,
       plantSite: "A",
+      plantLocation: loc(7, 7),
       plantPlayerLocations: [{ puuid: "foe1", location: loc(5, 5) }],
       bombDefuser: "me",
       defuseRoundTime: 70_000,
@@ -156,6 +157,13 @@ describe("toMatchReplay", () => {
     });
     const rr = toMatchReplay(match([r]), "me").rounds[0];
     expect(rr?.events.map((e) => e.type)).toEqual(["plant", "kill", "defuse"]);
+    expect(rr?.events[0]).toEqual({
+      type: "plant",
+      t: 40_000,
+      planter: "foe1",
+      site: "A",
+      pos: loc(7, 7),
+    });
     expect(rr?.snapshots.map((s) => s.source)).toEqual(["plant", "kill", "defuse"]);
     expect(rr?.durationMs).toBe(70_000);
   });

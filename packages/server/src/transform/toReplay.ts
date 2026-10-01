@@ -151,6 +151,9 @@ export function toRoundReplay(
       t,
       planter: round.bombPlanter ?? "",
       site: round.plantSite || "?",
+      ...(round.plantLocation
+        ? { pos: { x: round.plantLocation.x, y: round.plantLocation.y } }
+        : {}),
     });
     if (round.plantPlayerLocations) {
       snapshots.push({

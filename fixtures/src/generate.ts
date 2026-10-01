@@ -2,8 +2,9 @@
  * Deterministic fixture match generator.
  *
  * Produces payloads shaped like VAL-MATCH-V1 `MatchDto` (see packages/shared/src/match.ts).
- * Everything is synthetic: puuids, names, weapon/armor ids, and positions. Positions come
- * from made-up zones inside a plausible coordinate box; they do not trace real map geometry.
+ * Everything is synthetic: puuids, names, weapon/armor ids, and positions. Positions are
+ * random points in boxes around Ascent callout locations (see docs/ASSETS.md); they land in
+ * the right areas but do not respect walls.
  */
 import type {
   Economy,
@@ -22,12 +23,13 @@ type Side = "Blue" | "Red";
 type Vec = { x: number; y: number };
 type Zone = { x: [number, number]; y: [number, number] };
 
+// Boxes around Ascent callout centres (game units).
 const ZONES = {
-  attackSpawn: { x: [6500, 7500], y: [-6000, -5000] },
-  defendSpawn: { x: [-5000, -4000], y: [-5500, -4500] },
-  siteA: { x: [-1500, 500], y: [-10000, -8500] },
-  siteB: { x: [-1500, 500], y: [500, 2000] },
-  mid: { x: [1000, 3000], y: [-5000, -3500] },
+  attackSpawn: { x: [-300, 400], y: [-300, 400] }, // Attacker Side Spawn (60, 50)
+  defendSpawn: { x: [1600, 2400], y: [-10100, -9400] }, // Defender Side Spawn (1995, -9745)
+  siteA: { x: [5600, 6700], y: [-7200, -6000] }, // A Site (6154, -6626)
+  siteB: { x: [-2900, -1800], y: [-8100, -7000] }, // B Site (-2344, -7549)
+  mid: { x: [900, 2300], y: [-5000, -4100] }, // Mid Courtyard / Catwalk
 } satisfies Record<string, Zone>;
 
 const WEAPONS = {

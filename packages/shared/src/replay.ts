@@ -44,6 +44,8 @@ export const RoundEventSchema = z.discriminatedUnion("type", [
     t: z.number(),
     planter: z.string(),
     site: z.string(),
+    /** Where the spike was planted, from `plantLocation`. */
+    pos: Vec2Schema.optional(),
   }),
   z.object({
     type: z.literal("defuse"),
