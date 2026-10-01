@@ -3,9 +3,11 @@
  *
  * Produces payloads shaped like VAL-MATCH-V1 `MatchDto` (see packages/shared/src/match.ts).
  * Puuids, names, and positions are synthetic. Agent, weapon, and armor ids are the real
- * public content UUIDs so the UI can label them. Players move along routes of Ascent callout
- * points (see docs/ASSETS.md) and jump between waypoints, so snapshots land in playable areas.
+ * public content UUIDs so the UI can label them. Players move along routes built from the
+ * map's callout points (see docs/ASSETS.md) and jump between waypoints, so snapshots land in
+ * playable areas.
  */
+import { mapData, type Callout, type MapData } from "@replay-lab/shared";
 import type {
   Economy,
   Kill,
@@ -23,42 +25,58 @@ type Side = "Blue" | "Red";
 type Vec = { x: number; y: number };
 type Waypoint = { at: number; pos: Vec };
 
-// Ascent callout points (game units), from valorant-api.com /v1/maps.
-const P = {
-  atkSpawn: { x: 60, y: 50 },
-  defSpawn: { x: 1995, y: -9745 },
-  aLobby: { x: 4489, y: -3014 },
-  aMain: { x: 5322, y: -4710 },
-  aSite: { x: 6154, y: -6626 },
-  aRafters: { x: 6130, y: -8210 },
-  aGarden: { x: 3774, y: -7551 },
-  aTree: { x: 3981, y: -5939 },
-  bLobby: { x: -1491, y: -1390 },
-  bMain: { x: -1984, y: -5841 },
-  bSite: { x: -2344, y: -7549 },
-  bBoat: { x: -4485, y: -7763 },
-  midTop: { x: 2754, y: -2130 },
-  midCatwalk: { x: 2316, y: -4127 },
-  midCourtyard: { x: 1223, y: -4587 },
-  midBottom: { x: 1122, y: -5952 },
-  midMarket: { x: 1089, y: -7363 },
-  midPizza: { x: 1802, y: -7262 },
-} satisfies Record<string, Vec>;
-
-type SiteName = "A" | "B";
-const SITE_POS: Record<SiteName, Vec> = { A: P.aSite, B: P.bSite };
-const ATTACK_ROUTES: Record<SiteName | "Mid", Vec[]> = {
-  A: [P.aLobby, P.aMain, P.aSite],
-  B: [P.bLobby, P.bMain, P.bSite],
-  Mid: [P.midTop, P.midCatwalk, P.midCourtyard],
+/** Spawns, sites, and plausible routes built from a map's callout points. */
+type MapRoutes = {
+  atkSpawn: Vec;
+  defSpawn: Vec;
+  sites: Record<string, Vec>;
+  attack: Record<string, Vec[]>; // per site, plus "Mid"
+  defense: Vec[][];
 };
-const DEFENSE_ROUTES: Vec[][] = [
-  [P.aGarden, P.aRafters, P.aSite],
-  [P.aGarden, P.aTree, P.aTree],
-  [P.midMarket, P.bSite, P.bSite],
-  [P.midMarket, P.bSite, P.bBoat],
-  [P.midPizza, P.midBottom, P.midBottom],
-];
+
+const dist = (a: Vec, b: Vec) => Math.hypot(a.x - b.x, a.y - b.y);
+
+export function routesFor(map: MapData): MapRoutes {
+  const xy = (c: Callout): Vec => ({ x: c.pos.x, y: c.pos.y });
+  const find = (region: string, name: string) =>
+    map.callouts.find((c) => c.region === region && c.name === name);
+  const spawn = (side: string) =>
+    map.callouts.find((c) => c.name === "Spawn" && c.region.startsWith(side));
+  const atk = spawn("Attacker");
+  const def = spawn("Defender");
+  if (!atk || !def) throw new Error(`${map.displayName}: missing spawn callouts`);
+  const atkSpawn = xy(atk);
+  const defSpawn = xy(def);
+
+  const sites: Record<string, Vec> = {};
+  const attack: Record<string, Vec[]> = {};
+  const defense: Vec[][] = [];
+  for (const site of map.callouts.filter((c) => c.name === "Site")) {
+    const region = site.region;
+    const sitePos = xy(site);
+    sites[region] = sitePos;
+    // Attackers: lobby -> main -> site when the map names them, else nearest callouts in order.
+    const named = [find(region, "Lobby"), find(region, "Main")].flatMap((c) => (c ? [xy(c)] : []));
+    const regionPoints = map.callouts
+      .filter((c) => c.region === region && c.name !== "Site")
+      .map(xy);
+    const approach = named.length
+      ? named
+      : [...regionPoints].sort((a, b) => dist(a, atkSpawn) - dist(b, atkSpawn)).slice(0, 2);
+    attack[region] = [...approach, sitePos];
+    // Defenders: rotate in from the nearest point to their spawn, then hold the site or a corner.
+    const entry = [...regionPoints].sort((a, b) => dist(a, defSpawn) - dist(b, defSpawn))[0];
+    const corner = [...regionPoints].sort((a, b) => dist(b, sitePos) - dist(a, sitePos)).at(-1);
+    defense.push([entry ?? sitePos, sitePos, sitePos]);
+    if (corner) defense.push([entry ?? sitePos, sitePos, corner]);
+  }
+  const mid = map.callouts.filter((c) => c.region === "Mid").map(xy);
+  attack.Mid = [...mid].sort((a, b) => dist(a, atkSpawn) - dist(b, atkSpawn)).slice(0, 3);
+  const midHold = [...mid].sort((a, b) => dist(a, defSpawn) - dist(b, defSpawn)).slice(0, 2);
+  if (midHold.length) defense.push([...midHold, midHold.at(-1) ?? defSpawn]);
+  if (Object.keys(sites).length === 0) throw new Error(`${map.displayName}: no site callouts`);
+  return { atkSpawn, defSpawn, sites, attack, defense };
+}
 
 // Real content UUIDs (valorant-api.com /v1/weapons, /v1/gear, /v1/agents).
 const WEAPONS = {
@@ -121,6 +139,8 @@ export type GenerateOptions = {
   gameStartMillis: number;
   /** Include the fixture "signed-in" player. False produces someone else's match. */
   includeSelf: boolean;
+  /** Map path; defaults to Ascent. Any map with spawn and site callouts works. */
+  mapPath?: string;
   edge?: EdgeCaseOptions;
 };
 
@@ -142,6 +162,10 @@ type PlayerState = {
 
 export function generateMatch(opts: GenerateOptions): Match {
   const rand = rng(opts.seed);
+  const mapPath = opts.mapPath ?? FIXTURE_MAP;
+  const map = mapData(mapPath);
+  if (!map) throw new Error(`No map data for ${mapPath}`);
+  const routes = routesFor(map);
   const edge = opts.edge ?? {};
   const between = (lo: number, hi: number) => lo + rand() * (hi - lo);
   const near = (p: Vec, r: number): Vec => ({
@@ -208,7 +232,8 @@ export function generateMatch(opts: GenerateOptions): Match {
     if (isPistol) for (const s of all()) s.credits = 800;
     if (roundNum >= 24) for (const s of all()) s.credits = 5000;
 
-    const siteName: SiteName = rand() < 0.5 ? "A" : "B";
+    const siteName = pick(Object.keys(routes.sites));
+    const sitePos = routes.sites[siteName] ?? routes.defSpawn;
 
     // Buy phase.
     for (const s of all()) {
@@ -252,12 +277,12 @@ export function generateMatch(opts: GenerateOptions): Match {
         spent,
       };
       const isAttacker = s.team === attackers;
-      const spawn = near(isAttacker ? P.atkSpawn : P.defSpawn, 250);
+      const spawn = near(isAttacker ? routes.atkSpawn : routes.defSpawn, 250);
       const path = afk
         ? []
         : isAttacker
-          ? ATTACK_ROUTES[rand() < 0.25 ? "Mid" : siteName]
-          : pick(DEFENSE_ROUTES);
+          ? (routes.attack[rand() < 0.25 && routes.attack.Mid?.length ? "Mid" : siteName] ?? [])
+          : pick(routes.defense);
       // Waypoints are reached at staggered times; between them the player is at the last one.
       let at = 0;
       s.route = [{ at, pos: spawn }];
@@ -267,10 +292,21 @@ export function generateMatch(opts: GenerateOptions): Match {
       }
     }
 
-    const posAt = (s: PlayerState, t: number): Vec => {
+    const waypointAt = (s: PlayerState, t: number): Vec => {
       let best: Waypoint | undefined;
       for (const wp of s.route) if (wp.at <= t && (!best || wp.at >= best.at)) best = wp;
-      return near(best?.pos ?? P.atkSpawn, 60);
+      return best?.pos ?? routes.atkSpawn;
+    };
+    const posAt = (s: PlayerState, t: number): Vec => near(waypointAt(s, t), 60);
+    /** Duels mostly happen between players who are actually near each other. */
+    const opponentFor = (a: PlayerState, pool: PlayerState[], t: number): PlayerState => {
+      if (rand() < 0.2) return pick(pool);
+      const from = waypointAt(a, t);
+      const dist = (s: PlayerState) => {
+        const p = waypointAt(s, t);
+        return Math.hypot(p.x - from.x, p.y - from.y);
+      };
+      return [...pool].sort((x, y) => dist(x) - dist(y))[0] ?? pick(pool);
     };
     /** After a plant everyone converges on the site: attackers to hold, defenders to retake. */
     const convergeOnSite = (from: number) => {
@@ -279,7 +315,7 @@ export function generateMatch(opts: GenerateOptions): Match {
         s.route = s.route.filter((wp) => wp.at <= from);
         s.route.push({
           at: from + Math.round(between(4_000, 14_000)),
-          pos: near(SITE_POS[siteName], 600),
+          pos: near(sitePos, 600),
         });
       }
     };
@@ -334,7 +370,7 @@ export function generateMatch(opts: GenerateOptions): Match {
         planter = p;
         plantTime = Math.round(t + between(1_000, 4_000));
         t = plantTime;
-        plantLocation = near(SITE_POS[siteName], 250);
+        plantLocation = near(sitePos, 250);
         p.route.push({ at: t, pos: plantLocation });
         convergeOnSite(t);
         plantLocations = locations(t);
@@ -388,7 +424,7 @@ export function generateMatch(opts: GenerateOptions): Match {
       }
 
       const a = pick(atk);
-      const d = pick(def);
+      const d = opponentFor(a, def, t);
       // Attackers holding a planted spike have the positional edge.
       const aPower = a.weaponPower * (planter ? 1.8 : 1);
       const pA = aPower / (aPower + d.weaponPower || 1);
@@ -515,7 +551,7 @@ export function generateMatch(opts: GenerateOptions): Match {
   return {
     matchInfo: {
       matchId: opts.matchId,
-      mapId: FIXTURE_MAP,
+      mapId: mapPath,
       gameVersion: "fixture",
       gameLengthMillis: gameClock,
       gameStartMillis: opts.gameStartMillis,
@@ -547,13 +583,13 @@ export function generateMatch(opts: GenerateOptions): Match {
 export function fixtureSet(): Match[] {
   return [
     generateMatch({
-      seed: 31,
+      seed: 7,
       matchId: "fx-match-0001-standard",
       gameStartMillis: Date.UTC(2026, 8, 20, 18, 0),
       includeSelf: true,
     }),
     generateMatch({
-      seed: 48,
+      seed: 5,
       matchId: "fx-match-0002-overtime",
       gameStartMillis: Date.UTC(2026, 8, 21, 19, 30),
       includeSelf: true,
@@ -570,6 +606,28 @@ export function fixtureSet(): Match[] {
         omitViewRadians: true,
         missingPlayerLocationsRound: 7,
       },
+    }),
+    // Other maps, so every view can be tried beyond Ascent.
+    generateMatch({
+      seed: 4,
+      matchId: "fx-match-0005-haven",
+      gameStartMillis: Date.UTC(2026, 8, 24, 18, 30),
+      includeSelf: true,
+      mapPath: "/Game/Maps/Triad/Triad",
+    }),
+    generateMatch({
+      seed: 11,
+      matchId: "fx-match-0006-bind",
+      gameStartMillis: Date.UTC(2026, 8, 25, 20, 0),
+      includeSelf: true,
+      mapPath: "/Game/Maps/Duality/Duality",
+    }),
+    generateMatch({
+      seed: 6,
+      matchId: "fx-match-0007-lotus",
+      gameStartMillis: Date.UTC(2026, 8, 26, 21, 45),
+      includeSelf: true,
+      mapPath: "/Game/Maps/Jam/Jam",
     }),
     // A match the fixture player was not in: the API must refuse to serve it.
     generateMatch({

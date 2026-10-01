@@ -34,6 +34,9 @@ describe("app", () => {
     expect(res.statusCode).toBe(200);
     const list = MatchSummarySchema.array().parse(res.json());
     expect(list.map((m) => m.matchId)).toEqual([
+      "fx-match-0007-lotus",
+      "fx-match-0006-bind",
+      "fx-match-0005-haven",
       "fx-match-0003-edge-cases",
       "fx-match-0002-overtime",
       "fx-match-0001-standard",
