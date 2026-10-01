@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@replay-lab/fixtures": "workspace:*",
     "@replay-lab/shared": "workspace:*",
     "fastify": "^5.12.5",
     "zod": "^4.6.5"
