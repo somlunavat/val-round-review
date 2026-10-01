@@ -42,3 +42,25 @@ production builds.
 
 See `DATA_MODEL.md`. The API has no round end time, so `durationMs` is the latest time the data
 justifies.
+
+## No minimap image in the 2D view
+
+valorant-api.com's minimap images are extracted from the game client, so CLAUDE.md §2.3 rules them
+out. The 2D view draws a plain background with callout labels placed via the calibration. Only the
+calibration numbers and callout points come from valorant-api.com (logged in `ASSETS.md`).
+
+## 2D view holds the last snapshot, never blends
+
+Scrubbing between events keeps showing the most recent known snapshot, dimmed, with a banner
+naming the time it is from. Before the first event, nothing is drawn. Facing (`viewRadians`) is not
+drawn yet because its direction convention is unverified.
+
+## Players are labelled relative to the viewer
+
+"You", "Ally 1–4", "Enemy 1–5", with ally/enemy colours, not Blue/Red. Labels come from roster
+order, so they are stable within a match.
+
+## Playwright uses the installed Chrome locally
+
+`playwright.config.ts` sets `channel: "chrome"` outside CI to avoid a browser download. CI installs
+Playwright's Chromium.

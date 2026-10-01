@@ -10,6 +10,7 @@ corepack enable   # puts the pinned pnpm on PATH
 pnpm install
 pnpm dev          # web (Vite) + server (Fastify), fixtures only, no network
 pnpm test
+pnpm test:e2e     # Playwright smoke tests (uses installed Chrome locally)
 pnpm lint
 pnpm typecheck
 ```
