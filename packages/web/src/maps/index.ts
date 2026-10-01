@@ -1,10 +1,8 @@
-import { ascent } from "./ascent.js";
-import type { MapConfig } from "./types.js";
+import { mapData, type MapData } from "@replay-lab/shared";
 
-const MAPS: readonly MapConfig[] = [ascent];
-
+/** Calibration + callouts for a map path, or undefined if the map isn't supported yet. */
 export function mapConfigFor(mapPath: string): MapConfig | undefined {
-  return MAPS.find((m) => m.calibration.mapPath === mapPath);
+  return mapData(mapPath);
 }
 
-export type { MapConfig, MapCalibration, Callout } from "./types.js";
+export type MapConfig = MapData;

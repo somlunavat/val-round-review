@@ -32,7 +32,7 @@ export function MapView(props: MapViewProps) {
   const { map, snapshot, stale, selfTeam } = props;
   const [imageFailed, setImageFailed] = useState(false);
   const px = (pos: Vec2) => {
-    const n = toNormalized(map.calibration, pos);
+    const n = toNormalized(map, pos);
     return { x: n.x * VIEW, y: n.y * VIEW };
   };
   const teamColor = (team: TeamSide) =>
@@ -44,7 +44,7 @@ export function MapView(props: MapViewProps) {
       viewBox={`0 0 ${VIEW} ${VIEW}`}
       className="h-full w-full select-none"
       role="img"
-      aria-label={`${map.calibration.displayName} minimap with player positions`}
+      aria-label={`${map.displayName} minimap with player positions`}
     >
       <defs>
         <radialGradient id="map-vignette" cx="50%" cy="50%" r="70%">
@@ -375,7 +375,7 @@ function FallbackGrid() {
 
 /** Lines of constant game X and game Y every 1000 units, plus callout reference points. */
 function CalibrationGrid({ map, px }: { map: MapConfig; px: (p: Vec2) => Vec2 }) {
-  const cal = map.calibration;
+  const cal = map;
   const a = fromNormalized(cal, { x: 0, y: 0 });
   const b = fromNormalized(cal, { x: 1, y: 1 });
   const step = 1000;

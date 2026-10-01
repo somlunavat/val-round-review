@@ -1,5 +1,4 @@
-import type { Vec2 } from "@replay-lab/shared";
-import type { MapCalibration } from "./types.js";
+import type { MapCalibration, Vec2 } from "@replay-lab/shared";
 
 /** Game coordinates -> normalized minimap coordinates (0..1 inside the image). */
 export function toNormalized(cal: MapCalibration, pos: Vec2): Vec2 {
@@ -9,8 +8,8 @@ export function toNormalized(cal: MapCalibration, pos: Vec2): Vec2 {
   };
 }
 
-/** Game coordinates -> pixels on a square canvas of `size` px. */
-export function toPixel(cal: MapCalibration, pos: Vec2, size = cal.imageSize): Vec2 {
+/** Game coordinates -> pixels on a square image of `size` px. */
+export function toPixel(cal: MapCalibration, pos: Vec2, size: number): Vec2 {
   const n = toNormalized(cal, pos);
   return { x: n.x * size, y: n.y * size };
 }
@@ -21,4 +20,9 @@ export function fromNormalized(cal: MapCalibration, n: Vec2): Vec2 {
     x: (n.y - cal.yScalarToAdd) / cal.yMultiplier,
     y: (n.x - cal.xScalarToAdd) / cal.xMultiplier,
   };
+}
+
+/** Game units per normalized unit (the image spans this many game units). */
+export function gameUnitsPerImage(cal: MapCalibration): number {
+  return 1 / Math.abs(cal.xMultiplier);
 }

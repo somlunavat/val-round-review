@@ -1,11 +1,9 @@
 /**
- * Map identity only (path -> display name). Calibration and geometry live in
- * packages/web/src/maps/ per CLAUDE.md §7.
- *
- * Paths are the internal map ids returned as `matchInfo.mapId`. VERIFY each
- * against VAL-CONTENT-V1 before relying on it.
+ * Map identity, calibration, and callout points for every supported map.
+ * Data lives in mapData.ts (generated from valorant-api.com, numbers only).
  */
 import { z } from "zod";
+import { MAP_DATA } from "./mapData.js";
 
 export const MapInfoSchema = z.object({
   mapPath: z.string(),
@@ -13,14 +11,37 @@ export const MapInfoSchema = z.object({
 });
 export type MapInfo = z.infer<typeof MapInfoSchema>;
 
-export const KNOWN_MAPS: readonly MapInfo[] = [
-  { mapPath: "/Game/Maps/Ascent/Ascent", displayName: "Ascent" },
-  { mapPath: "/Game/Maps/Bonsai/Bonsai", displayName: "Split" },
-  { mapPath: "/Game/Maps/Duality/Duality", displayName: "Bind" },
-  { mapPath: "/Game/Maps/Port/Port", displayName: "Icebox" },
-  { mapPath: "/Game/Maps/Triad/Triad", displayName: "Haven" },
-];
+/** A named area with a reference point in game units (z is floor height). */
+export type Callout = {
+  name: string;
+  region: string;
+  pos: { x: number; y: number; z: number };
+};
+
+/**
+ * Game x/y -> normalized minimap coordinates (0..1). Note the axis swap:
+ * game Y drives horizontal, game X drives vertical.
+ */
+export type MapCalibration = {
+  xMultiplier: number;
+  yMultiplier: number;
+  xScalarToAdd: number;
+  yScalarToAdd: number;
+};
+
+export type MapData = MapInfo & MapCalibration & { callouts: Callout[] };
+
+export const KNOWN_MAPS: readonly MapInfo[] = MAP_DATA.map(({ mapPath, displayName }) => ({
+  mapPath,
+  displayName,
+}));
+
+export function mapData(mapPath: string): MapData | undefined {
+  return MAP_DATA.find((m) => m.mapPath === mapPath);
+}
 
 export function mapDisplayName(mapPath: string): string {
-  return KNOWN_MAPS.find((m) => m.mapPath === mapPath)?.displayName ?? "Unknown map";
+  return mapData(mapPath)?.displayName ?? "Unknown map";
 }
+
+export { MAP_DATA };
