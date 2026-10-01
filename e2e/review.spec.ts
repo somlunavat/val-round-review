@@ -7,10 +7,10 @@ test("pick a match, a round, and jump to an event", async ({ page }) => {
 
   await page.getByRole("button", { name: /Ascent 13–11 win/ }).click();
   await expect(page.getByRole("heading", { name: "Ascent" })).toBeVisible();
-  await expect(page.getByText(/No known positions yet/)).toBeVisible();
+  await expect(page.getByText(/No positions yet/)).toBeVisible();
 
   await page.getByRole("tab", { name: /^Round 3:/ }).click();
-  await expect(page.getByText("Round 3", { exact: true })).toBeVisible();
+  await expect(page.getByText("Round 03", { exact: true })).toBeVisible();
 
   await page
     .getByRole("button", { name: /^Jump to/ })

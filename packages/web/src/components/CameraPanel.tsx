@@ -26,15 +26,15 @@ const MODES: { id: CameraMode; label: string }[] = [
 /** View switch (2D/3D) and, in 3D, camera mode plus POV subject/target pickers. */
 export function ViewSwitch({ view, onView }: Pick<Props, "view" | "onView">) {
   return (
-    <div className="pointer-events-auto flex rounded-full border border-line bg-ink/80 p-0.5 backdrop-blur-md">
+    <div className="pointer-events-auto flex border border-line bg-ink/90">
       {(["2d", "3d"] as const).map((v) => (
         <button
           key={v}
           type="button"
           aria-pressed={view === v}
           onClick={() => onView(v)}
-          className={`rounded-full px-3 py-1 font-display text-xs font-bold uppercase ${
-            view === v ? "bg-white text-ink" : "text-muted hover:text-white"
+          className={`px-3 py-1 font-cond text-xs font-bold uppercase tracking-[0.18em] ${
+            view === v ? "bg-bone text-ink" : "text-muted hover:text-bone"
           }`}
         >
           {v}
@@ -57,8 +57,9 @@ export function CameraPanel(props: Props) {
   };
 
   return (
-    <div className="pointer-events-auto w-64 space-y-2 rounded-xl border border-line bg-ink/85 p-2.5 text-xs backdrop-blur-md">
-      <div className="flex rounded-lg bg-surface p-0.5" role="radiogroup" aria-label="Camera">
+    <div className="pointer-events-auto w-64 space-y-2.5 border border-line bg-ink/92 p-2.5 text-xs">
+      <div className="hud-label !text-[10px]">Camera</div>
+      <div className="grid grid-cols-4 border border-line" role="radiogroup" aria-label="Camera">
         {MODES.map((m) => (
           <button
             key={m.id}
@@ -66,8 +67,8 @@ export function CameraPanel(props: Props) {
             role="radio"
             aria-checked={cameraMode === m.id}
             onClick={() => onCameraMode(m.id)}
-            className={`flex-1 rounded-md py-1 font-medium ${
-              cameraMode === m.id ? "bg-raised text-white" : "text-muted hover:text-soft"
+            className={`py-1.5 font-cond text-xs font-bold uppercase tracking-[0.12em] ${
+              cameraMode === m.id ? "bg-bone text-ink" : "text-muted hover:text-bone"
             }`}
           >
             {m.label}
@@ -80,18 +81,22 @@ export function CameraPanel(props: Props) {
           <button
             type="button"
             onClick={() => goPov(kill.killer, kill.victim)}
-            className="rounded-lg border border-line bg-surface px-2 py-1.5 text-left hover:border-muted"
+            className="cut-sm border-l-2 border-red bg-surface px-2 py-1.5 text-left hover:bg-raised"
           >
-            <div className="text-[10px] uppercase tracking-wider text-muted">Killer's view</div>
-            <div className="truncate font-medium text-white">{labelOf(kill.killer)}</div>
+            <div className="hud-label !text-[9px]">Killer's view</div>
+            <div className="truncate font-cond text-sm font-bold uppercase text-bone">
+              {labelOf(kill.killer)}
+            </div>
           </button>
           <button
             type="button"
             onClick={() => goPov(kill.victim, kill.killer)}
-            className="rounded-lg border border-line bg-surface px-2 py-1.5 text-left hover:border-muted"
+            className="cut-sm border-l-2 border-soft bg-surface px-2 py-1.5 text-left hover:bg-raised"
           >
-            <div className="text-[10px] uppercase tracking-wider text-muted">Victim's view</div>
-            <div className="truncate font-medium text-white">{labelOf(kill.victim)}</div>
+            <div className="hud-label !text-[9px]">Victim's view</div>
+            <div className="truncate font-cond text-sm font-bold uppercase text-bone">
+              {labelOf(kill.victim)}
+            </div>
           </button>
         </div>
       )}
@@ -99,11 +104,13 @@ export function CameraPanel(props: Props) {
       {needsSubject && (
         <div className="space-y-1.5">
           <label className="flex items-center justify-between gap-2">
-            <span className="text-muted">{cameraMode === "pov" ? "Eyes of" : "Follow"}</span>
+            <span className="hud-label !text-[10px]">
+              {cameraMode === "pov" ? "Eyes of" : "Follow"}
+            </span>
             <select
               value={pov.subject ?? ""}
               onChange={(e) => onPov({ subject: e.target.value || undefined })}
-              className="w-36 rounded-md border border-line bg-surface px-1.5 py-1 text-white"
+              className="w-36 border border-line bg-surface px-1.5 py-1 font-cond text-sm font-semibold uppercase text-bone"
             >
               <option value="">Choose a player</option>
               {present.map((p) => (
@@ -116,11 +123,11 @@ export function CameraPanel(props: Props) {
           </label>
           {cameraMode === "pov" && (
             <label className="flex items-center justify-between gap-2">
-              <span className="text-muted">Aimed at</span>
+              <span className="hud-label !text-[10px]">Aimed at</span>
               <select
                 value={pov.target ?? ""}
                 onChange={(e) => onPov({ target: e.target.value || undefined })}
-                className="w-36 rounded-md border border-line bg-surface px-1.5 py-1 text-white"
+                className="w-36 border border-line bg-surface px-1.5 py-1 font-cond text-sm font-semibold uppercase text-bone"
               >
                 <option value="">Nothing</option>
                 {present
@@ -135,13 +142,13 @@ export function CameraPanel(props: Props) {
             </label>
           )}
           {pov.subject && !subjectKnown && (
-            <p className="text-spike">This player's position isn't known at this moment.</p>
+            <p className="text-spike">Position unknown at this moment.</p>
           )}
         </div>
       )}
 
       {cameraMode === "pov" && (
-        <p className="leading-snug text-muted">
+        <p className="border-t border-line pt-2 leading-snug text-muted">
           Camera sits at the recorded position, at eye height, aimed at your pick. Where they
           actually looked isn't in the data. Drag to look around.
         </p>

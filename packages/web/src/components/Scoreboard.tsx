@@ -19,31 +19,34 @@ export function Scoreboard({ players, selfTeam, player }: Props) {
           .filter((p) => p.team === side)
           .sort((a, b) => (b.stats?.score ?? 0) - (a.stats?.score ?? 0));
         return (
-          <table key={side} className="w-full text-sm">
+          <table key={side} className="w-full">
             <caption
-              className={`mb-2 text-left font-display text-sm font-bold uppercase tracking-wider ${ally ? "text-ally" : "text-enemy"}`}
+              className={`mb-1.5 border-b-2 pb-1 text-left font-display text-xl leading-none tracking-wide ${
+                ally ? "border-ally text-ally" : "border-red text-red"
+              }`}
             >
               {ally ? "Your team" : "Enemy team"}
             </caption>
             <thead>
-              <tr className="text-[11px] uppercase tracking-wider text-muted">
-                <th className="pb-1 text-left font-medium">Agent</th>
-                <th className="pb-1 text-right font-medium">K</th>
-                <th className="pb-1 text-right font-medium">D</th>
-                <th className="pb-1 text-right font-medium">A</th>
-                <th className="pb-1 text-right font-medium">Score</th>
+              <tr className="hud-label">
+                <th className="py-1 text-left font-semibold">Agent</th>
+                <th className="w-12 text-right font-semibold">K</th>
+                <th className="w-12 text-right font-semibold">D</th>
+                <th className="w-12 text-right font-semibold">A</th>
+                <th className="w-16 pr-1 text-right font-semibold">Score</th>
               </tr>
             </thead>
-            <tbody className="font-display tabular">
+            <tbody className="font-cond text-base font-bold tabular">
               {team.map((p) => {
                 const info = player(p.puuid);
                 return (
-                  <tr key={p.puuid} className={p.isSelf ? "bg-raised" : ""}>
-                    <td className="py-1.5 pl-1 font-sans">
+                  <tr
+                    key={p.puuid}
+                    className={`border-b border-line/60 ${p.isSelf ? "bg-bone/[0.06]" : ""}`}
+                  >
+                    <td className="py-1.5 pl-1">
                       <span className="flex items-center gap-2">
-                        <span
-                          className={`h-6 w-6 shrink-0 overflow-hidden rounded border bg-raised ${ally ? "border-ally/60" : "border-enemy/60"}`}
-                        >
+                        <span className="h-7 w-7 shrink-0 overflow-hidden bg-ink">
                           {info.agentIcon && (
                             <img
                               src={info.agentIcon}
@@ -52,12 +55,14 @@ export function Scoreboard({ players, selfTeam, player }: Props) {
                             />
                           )}
                         </span>
-                        <span className={p.isSelf ? "font-semibold text-white" : "text-soft"}>
+                        <span
+                          className={`text-sm uppercase tracking-wide ${p.isSelf ? "text-bone" : "text-soft"}`}
+                        >
                           {info.label}
                         </span>
                       </span>
                     </td>
-                    <td className="text-right font-semibold text-white">{p.stats?.kills ?? "–"}</td>
+                    <td className="text-right text-bone">{p.stats?.kills ?? "–"}</td>
                     <td className="text-right text-soft">{p.stats?.deaths ?? "–"}</td>
                     <td className="text-right text-soft">{p.stats?.assists ?? "–"}</td>
                     <td className="pr-1 text-right text-soft">{p.stats?.score ?? "–"}</td>

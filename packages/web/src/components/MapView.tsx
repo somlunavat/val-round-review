@@ -48,8 +48,8 @@ export function MapView(props: MapViewProps) {
     >
       <defs>
         <radialGradient id="map-vignette" cx="50%" cy="50%" r="70%">
-          <stop offset="60%" stopColor="#0b0e13" stopOpacity="0" />
-          <stop offset="100%" stopColor="#0b0e13" stopOpacity="0.8" />
+          <stop offset="60%" stopColor="#0f1923" stopOpacity="0" />
+          <stop offset="100%" stopColor="#0f1923" stopOpacity="0.8" />
         </radialGradient>
         <marker
           id="arrow-ally"
@@ -81,7 +81,7 @@ export function MapView(props: MapViewProps) {
         </filter>
       </defs>
 
-      <rect width={VIEW} height={VIEW} fill="#0d1218" />
+      <rect width={VIEW} height={VIEW} fill="#101b25" />
       {showImage ? (
         <image
           href={props.minimapUrl}
@@ -111,10 +111,10 @@ export function MapView(props: MapViewProps) {
               y={at.y}
               textAnchor="middle"
               dominantBaseline="middle"
-              className="fill-white/50 font-display text-[19px] font-semibold uppercase tracking-wider"
+              className="fill-[#ece8e1]/55 font-cond text-[19px] font-bold uppercase tracking-[0.12em]"
               style={{
                 paintOrder: "stroke",
-                stroke: "#0b0e13",
+                stroke: "#0f1923",
                 strokeWidth: 4,
                 strokeOpacity: 0.6,
               }}
@@ -222,8 +222,19 @@ function PlayerMarker({
   return (
     <g transform={`translate(${at.x} ${at.y}) scale(${MARKER_SCALE})`} opacity={dead ? 0.75 : 1}>
       <title>{`${label}${dead ? " (dead)" : ""}`}</title>
-      {isSelf && !dead && <circle r="25" fill="none" stroke="white" strokeWidth="3" />}
-      <circle r="18" fill="#0b0e13" stroke={color} strokeWidth="4" />
+      {isSelf && !dead && (
+        <rect
+          x="-25"
+          y="-25"
+          width="50"
+          height="50"
+          fill="none"
+          stroke="#ece8e1"
+          strokeWidth="3"
+          transform="rotate(45)"
+        />
+      )}
+      <circle r="18" fill="#0f1923" stroke={color} strokeWidth="4" />
       {icon ? (
         <image
           href={icon}
@@ -251,8 +262,8 @@ function PlayerMarker({
           y="-11"
           width={label.length * 9.2 + 20}
           height="22"
-          rx="11"
-          fill="#0b0e13"
+          rx="1"
+          fill="#0f1923"
           fillOpacity="0.85"
           stroke={isSelf ? "white" : color}
           strokeOpacity={isSelf ? 0.9 : 0.6}
@@ -261,7 +272,7 @@ function PlayerMarker({
         <text
           textAnchor="middle"
           dominantBaseline="central"
-          className={`font-display text-[14px] font-semibold ${isSelf ? "fill-white" : "fill-white/85"}`}
+          className={`font-cond text-[15px] font-bold uppercase tracking-wide ${isSelf ? "fill-white" : "fill-white/85"}`}
         >
           {label}
         </text>
@@ -320,7 +331,7 @@ function KillLine({
             width="68"
             height="26"
             rx="6"
-            fill="#0b0e13"
+            fill="#0f1923"
             fillOpacity="0.9"
             stroke={color}
             strokeOpacity="0.5"
@@ -351,10 +362,10 @@ function SpikeMarker({ at, active }: { at: Vec2; active: boolean }) {
       <path
         d="M0 -17 13 0 0 17 -13 0z"
         fill={active ? "var(--color-spike)" : "#6b7280"}
-        stroke="#0b0e13"
+        stroke="#0f1923"
         strokeWidth="3"
       />
-      <path d="M0 -8v16" stroke="#0b0e13" strokeWidth="3" strokeLinecap="round" />
+      <path d="M0 -8v16" stroke="#0f1923" strokeWidth="3" strokeLinecap="round" />
     </g>
   );
 }

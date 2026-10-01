@@ -46,8 +46,8 @@ export function LabelOverlay({
         >
           {s.kind === "player" ? (
             <div
-              className={`whitespace-nowrap rounded-full border px-2 py-0.5 font-display text-[11px] font-semibold group-data-[occluded=true]:border-dashed group-data-[occluded=true]:opacity-45 ${
-                s.isSelf ? "border-white bg-ink/90 text-white" : "bg-ink/80 text-white/90"
+              className={`whitespace-nowrap border px-1.5 py-px font-cond text-[12px] font-bold uppercase tracking-wide group-data-[occluded=true]:border-dashed group-data-[occluded=true]:opacity-45 ${
+                s.isSelf ? "border-bone bg-ink/90 text-bone" : "bg-ink/85 text-bone/90"
               }`}
               style={{
                 borderColor: s.isSelf ? undefined : s.color,
@@ -62,7 +62,7 @@ export function LabelOverlay({
               </span>
             </div>
           ) : (
-            <div className="whitespace-nowrap font-display text-[10px] font-semibold uppercase tracking-wider text-white/45">
+            <div className="whitespace-nowrap font-cond text-[11px] font-bold uppercase tracking-[0.14em] text-bone/45">
               {s.text}
             </div>
           )}

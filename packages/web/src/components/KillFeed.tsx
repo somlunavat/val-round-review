@@ -11,11 +11,13 @@ type Props = {
   onSeek: (t: number) => void;
 };
 
+const ALLY_RGB = "69 224 189";
+const ENEMY_RGB = "255 70 85";
+
+/** In-game style kill feed: killer left, weapon, victim right, tinted by side. */
 export function KillFeed({ events, t, player, weaponIcon, onSeek }: Props) {
   if (events.length === 0) {
-    return (
-      <p className="px-2 py-6 text-center text-sm text-muted">No events recorded this round.</p>
-    );
+    return <p className="py-8 text-center text-sm text-muted">No events recorded this round.</p>;
   }
   return (
     <ol className="space-y-1">
@@ -23,21 +25,22 @@ export function KillFeed({ events, t, player, weaponIcon, onSeek }: Props) {
         const past = e.t <= t;
         const current = e.t === t;
         return (
-          <li key={i}>
+          <li key={i} className="flex items-stretch gap-2">
+            <span
+              className={`flex w-10 shrink-0 items-center justify-end font-cond text-xs font-bold tabular ${
+                current ? "text-bone" : "text-muted"
+              }`}
+            >
+              {formatRoundTime(e.t)}
+            </span>
             <button
               type="button"
               onClick={() => onSeek(e.t)}
-              className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm transition ${
-                current
-                  ? "border-white/40 bg-raised"
-                  : past
-                    ? "border-transparent bg-surface/60 hover:bg-raised"
-                    : "border-transparent opacity-45 hover:opacity-80"
-              }`}
+              className={`flex min-w-0 flex-1 items-center gap-2 border-l-2 px-2 py-1.5 text-left transition ${
+                current ? "border-bone" : "border-transparent"
+              } ${past ? "opacity-100" : "opacity-40 hover:opacity-75"}`}
+              style={rowStyle(e, player)}
             >
-              <span className="w-9 shrink-0 font-display text-xs font-semibold tabular text-muted">
-                {formatRoundTime(e.t)}
-              </span>
               <EventBody event={e} player={player} weaponIcon={weaponIcon} />
             </button>
           </li>
@@ -45,6 +48,15 @@ export function KillFeed({ events, t, player, weaponIcon, onSeek }: Props) {
       })}
     </ol>
   );
+}
+
+function rowStyle(e: RoundEvent, player: Props["player"]) {
+  if (e.type !== "kill") return { background: "rgb(236 232 225 / 0.04)" };
+  const a = player(e.killer).ally ? ALLY_RGB : ENEMY_RGB;
+  const b = player(e.victim).ally ? ALLY_RGB : ENEMY_RGB;
+  return {
+    background: `linear-gradient(90deg, rgb(${a} / 0.22), rgb(15 25 35 / 0.6) 45%, rgb(15 25 35 / 0.6) 55%, rgb(${b} / 0.22))`,
+  };
 }
 
 function EventBody({
@@ -61,62 +73,63 @@ function EventBody({
     const victim = player(e.victim);
     const weapon = weaponIcon(e.weapon);
     return (
-      <span className="flex min-w-0 flex-1 items-center gap-2">
+      <>
+        <Agent info={killer} />
         <Name info={killer} />
-        <span className="flex h-5 w-14 shrink-0 items-center justify-center" title={weapon?.name}>
+        <span
+          className="mx-auto flex h-5 w-16 shrink-0 items-center justify-center"
+          title={weapon?.name}
+        >
           {weapon?.icon ? (
-            <img
-              src={weapon.icon}
-              alt={weapon.name}
-              className="max-h-4 max-w-14 opacity-90 invert-0"
-            />
+            <img src={weapon.icon} alt={weapon.name} className="max-h-4 max-w-16" />
           ) : (
-            <span className="text-muted">→</span>
+            <span className="font-cond text-xs text-muted">▶</span>
           )}
         </span>
-        <Name info={victim} struck />
-      </span>
+        <Name info={victim} right />
+        <Agent info={victim} dead />
+      </>
     );
   }
-  if (e.type === "plant") {
-    return (
-      <span className="flex min-w-0 flex-1 items-center gap-2">
-        <SpikeIcon size={16} className="shrink-0 text-spike" />
-        <Name info={player(e.planter)} />
-        <span className="text-soft">planted on {e.site}</span>
-      </span>
-    );
-  }
+  const who = player(e.type === "plant" ? e.planter : e.defuser);
   return (
-    <span className="flex min-w-0 flex-1 items-center gap-2">
-      <DefuseIcon size={16} className="shrink-0 text-sky-400" />
-      <Name info={player(e.defuser)} />
-      <span className="text-soft">defused</span>
+    <>
+      {e.type === "plant" ? (
+        <SpikeIcon size={16} className="shrink-0 text-spike" />
+      ) : (
+        <DefuseIcon size={16} className="shrink-0 text-sky-300" />
+      )}
+      <Agent info={who} />
+      <Name info={who} />
+      <span className="ml-auto font-cond text-xs font-bold uppercase tracking-[0.15em] text-soft">
+        {e.type === "plant" ? `Planted · ${e.site}` : "Defused"}
+      </span>
+    </>
+  );
+}
+
+function Agent({ info, dead }: { info: PlayerInfo; dead?: boolean }) {
+  return (
+    <span className="h-6 w-6 shrink-0 overflow-hidden bg-ink">
+      {info.agentIcon && (
+        <img
+          src={info.agentIcon}
+          alt=""
+          className={`h-full w-full object-cover ${dead ? "grayscale" : ""}`}
+        />
+      )}
     </span>
   );
 }
 
-function Name({ info, struck }: { info: PlayerInfo; struck?: boolean }) {
+function Name({ info, right }: { info: PlayerInfo; right?: boolean }) {
   return (
-    <span className="flex min-w-0 items-center gap-1.5">
-      <span
-        className={`h-5 w-5 shrink-0 overflow-hidden rounded border ${info.ally ? "border-ally/70" : "border-enemy/70"} bg-raised`}
-      >
-        {info.agentIcon && (
-          <img
-            src={info.agentIcon}
-            alt=""
-            className={`h-full w-full object-cover ${struck ? "grayscale" : ""}`}
-          />
-        )}
-      </span>
-      <span
-        className={`truncate font-medium ${info.isSelf ? "text-white" : info.ally ? "text-ally" : "text-enemy"} ${
-          struck ? "opacity-70" : ""
-        }`}
-      >
-        {info.label}
-      </span>
+    <span
+      className={`min-w-0 truncate font-cond text-sm font-bold uppercase tracking-wide ${right ? "text-right" : ""} ${
+        info.isSelf ? "text-bone" : info.ally ? "text-ally" : "text-red"
+      }`}
+    >
+      {info.label}
     </span>
   );
 }

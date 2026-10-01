@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { AlertIcon } from "./Icons.js";
 
 export function Notice({
   tone = "info",
@@ -14,19 +13,33 @@ export function Notice({
   return (
     <div
       role={error ? "alert" : "status"}
-      className={`flex gap-3 rounded-xl border px-4 py-3 text-sm ${
-        error ? "border-enemy/40 bg-enemy-dim/60 text-red-100" : "border-line bg-panel text-soft"
+      className={`border-l-[3px] px-4 py-3 text-sm ${
+        error ? "border-red bg-enemy-dim/70 text-bone" : "border-muted bg-panel text-soft"
       }`}
     >
-      {error && <AlertIcon size={18} className="mt-0.5 shrink-0 text-enemy" />}
-      <div>
-        {title && <div className="mb-0.5 font-medium text-white">{title}</div>}
-        {children}
-      </div>
+      {title && (
+        <div
+          className={`mb-1 font-cond text-xs font-bold uppercase tracking-[0.2em] ${error ? "text-red" : "text-bone"}`}
+        >
+          {title}
+        </div>
+      )}
+      {children}
     </div>
   );
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-lg bg-raised/70 ${className}`} />;
+  return <div className={`animate-pulse bg-raised/60 ${className}`} />;
+}
+
+/** Section heading: small caps label with a rule. */
+export function SectionLabel({ children, right }: { children: ReactNode; right?: ReactNode }) {
+  return (
+    <div className="mb-3 flex items-center gap-3">
+      <span className="hud-label text-bone">{children}</span>
+      <span className="h-px flex-1 bg-line" />
+      {right && <span className="hud-label">{right}</span>}
+    </div>
+  );
 }

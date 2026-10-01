@@ -1,23 +1,30 @@
 @import "tailwindcss";
 
+/*
+ * Tactical HUD theme: navy ink, bone text, red accent, hard edges.
+ * Inspired by in-game UI conventions; no Riot logos or fonts.
+ */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Chakra Petch", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bebas Neue", "Barlow Condensed", ui-sans-serif, sans-serif;
+  --font-cond: "Barlow Condensed", "Barlow", ui-sans-serif, sans-serif;
 
-  --color-ink: #0b0e13;
-  --color-surface: #11161d;
-  --color-panel: #161d26;
-  --color-raised: #1d2631;
-  --color-line: #263240;
-  --color-muted: #7d8a99;
-  --color-soft: #b4c0cc;
+  --color-ink: #0f1923;
+  --color-surface: #121e29;
+  --color-panel: #172430;
+  --color-raised: #1f2f3c;
+  --color-line: #2a3b48;
+  --color-muted: #7d8b95;
+  --color-soft: #b9bfc0;
+  --color-bone: #ece8e1;
 
-  --color-ally: #2ee6c0;
-  --color-ally-dim: #0f3b35;
-  --color-enemy: #ff5c64;
-  --color-enemy-dim: #42181c;
-  --color-spike: #ffc83d;
-  --color-spike-dim: #3d2f0c;
+  --color-red: #ff4655;
+  --color-ally: #45e0bd;
+  --color-ally-dim: #12322f;
+  --color-enemy: #ff4655;
+  --color-enemy-dim: #3a1a22;
+  --color-spike: #f5c542;
+  --color-spike-dim: #3a3018;
 }
 
 @layer base {
@@ -25,13 +32,68 @@
     color-scheme: dark;
   }
   body {
-    @apply bg-ink font-sans text-neutral-100 antialiased;
+    @apply bg-ink font-sans text-bone antialiased;
+    background-image:
+      linear-gradient(rgb(236 232 225 / 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(236 232 225 / 0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
   }
   ::selection {
-    @apply bg-ally/30;
+    @apply bg-red/40;
+  }
+  select {
+    @apply rounded-none;
   }
 }
 
 @utility tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Small uppercase label used across panels. */
+@utility hud-label {
+  font-family: var(--font-cond);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* Cut bottom-right corner. */
+@utility cut {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+}
+@utility cut-sm {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+}
+/* Cut top-left and bottom-right. */
+@utility cut-2 {
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+/* HUD corner brackets on a positioned element. */
+@utility hud-frame {
+  position: relative;
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+    z-index: 30;
+  }
+  &::before {
+    top: -1px;
+    left: -1px;
+    border-top: 2px solid var(--color-bone);
+    border-left: 2px solid var(--color-bone);
+  }
+  &::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom: 2px solid var(--color-bone);
+    border-right: 2px solid var(--color-bone);
+  }
 }

@@ -4,10 +4,10 @@ import type { MapData } from "@replay-lab/shared";
 import { toNormalized } from "../maps/calibration.js";
 import { SCENE, WALL_HEIGHT, type Blockout } from "./blockout.js";
 
-const FLOOR_LOW = new THREE.Color("#25303c");
-const FLOOR_HIGH = new THREE.Color("#5a6a7c");
-const SITE_TINT = new THREE.Color("#7a6324");
-const WALL = new THREE.Color("#9fb0c4");
+const FLOOR_LOW = new THREE.Color("#1b2833");
+const FLOOR_HIGH = new THREE.Color("#4d5f6b");
+const SITE_TINT = new THREE.Color("#6e5a2a");
+const WALL = new THREE.Color("#c9c3b8");
 const BASE_DEPTH = 1.2;
 
 type Props = {
@@ -109,7 +109,7 @@ export function BlockoutMesh({ map, blockout, wallScale }: Props) {
       {/* Ground plane under everything */}
       <mesh rotation-x={-Math.PI / 2} position={[SCENE / 2, -BASE_DEPTH, SCENE / 2]}>
         <planeGeometry args={[SCENE * 3, SCENE * 3]} />
-        <meshStandardMaterial color="#0d1218" />
+        <meshStandardMaterial color="#0c141c" />
       </mesh>
     </group>
   );

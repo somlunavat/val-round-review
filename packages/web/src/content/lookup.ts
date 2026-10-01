@@ -2,7 +2,9 @@ import type { Content, ContentItem, MapImages } from "@replay-lab/shared";
 
 /** Case-insensitive id lookups over /api/content. Every getter tolerates missing data. */
 export type ContentLookup = {
-  agent: (id: string | undefined) => (ContentItem & { role?: string }) | undefined;
+  agent: (
+    id: string | undefined,
+  ) => (ContentItem & { role?: string; portrait?: string }) | undefined;
   weapon: (id: string | undefined) => ContentItem | undefined;
   armor: (id: string | undefined) => ContentItem | undefined;
   map: (mapPath: string) => MapImages | undefined;

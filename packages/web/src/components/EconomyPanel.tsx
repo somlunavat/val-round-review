@@ -35,21 +35,20 @@ export function EconomyPanel({ economy, players, selfTeam, player, lookup, afk }
         const ally = side === selfTeam;
         return (
           <section key={side}>
-            <header className="mb-2 flex items-baseline justify-between">
+            <header
+              className={`mb-1.5 flex items-end justify-between border-b-2 pb-1 ${ally ? "border-ally" : "border-red"}`}
+            >
               <h3
-                className={`font-display text-sm font-bold uppercase tracking-wider ${ally ? "text-ally" : "text-enemy"}`}
+                className={`font-display text-xl leading-none tracking-wide ${ally ? "text-ally" : "text-red"}`}
               >
                 {ally ? "Your team" : "Enemy team"}
               </h3>
-              <span className="text-xs text-muted">
+              <span className="font-cond text-xs font-semibold uppercase tracking-[0.15em] text-muted">
                 {known.length ? `${buyType(avg)} · ` : ""}
-                <span className="font-display font-semibold tabular text-soft">
-                  {total.toLocaleString()}
-                </span>{" "}
-                loadout
+                <span className="text-bone tabular">{total.toLocaleString()}</span>
               </span>
             </header>
-            <ul className="space-y-1">
+            <ul>
               {team.map((p) => {
                 const e = byPuuid.get(p.puuid);
                 const weapon = lookup.weapon(e?.weapon);
@@ -58,55 +57,50 @@ export function EconomyPanel({ economy, players, selfTeam, player, lookup, afk }
                 return (
                   <li
                     key={p.puuid}
-                    className={`grid grid-cols-[minmax(0,1fr)_5.5rem_3.5rem] items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${
-                      p.isSelf ? "bg-raised" : "bg-surface/60"
+                    className={`grid grid-cols-[minmax(0,1fr)_5.5rem_1rem_3.5rem] items-center gap-2 border-b border-line/60 px-1 py-1.5 ${
+                      p.isSelf ? "bg-bone/[0.06]" : ""
                     }`}
                   >
                     <span className="flex min-w-0 items-center gap-2">
-                      <span
-                        className={`h-6 w-6 shrink-0 overflow-hidden rounded border bg-raised ${ally ? "border-ally/60" : "border-enemy/60"}`}
-                      >
+                      <span className="h-7 w-7 shrink-0 overflow-hidden bg-ink">
                         {info.agentIcon && (
                           <img src={info.agentIcon} alt="" className="h-full w-full object-cover" />
                         )}
                       </span>
                       <span
-                        className={`truncate ${p.isSelf ? "font-semibold text-white" : "text-soft"}`}
+                        className={`truncate font-cond text-sm font-bold uppercase tracking-wide ${p.isSelf ? "text-bone" : "text-soft"}`}
                       >
                         {info.label}
                       </span>
                       {afk.includes(p.puuid) && (
-                        <span className="rounded bg-spike-dim px-1.5 text-[10px] font-semibold text-spike">
+                        <span className="bg-spike px-1 font-cond text-[10px] font-bold uppercase text-ink">
                           AFK
                         </span>
                       )}
                     </span>
                     {e ? (
                       <>
-                        <span
-                          className="flex items-center gap-1.5"
-                          title={`${itemName(weapon, e.weapon)} · ${itemName(armor, e.armor)}`}
-                        >
+                        <span className="flex h-5 items-center" title={itemName(weapon, e.weapon)}>
                           {weapon?.icon ? (
                             <img
                               src={weapon.icon}
                               alt={weapon.name}
-                              className="h-4 max-w-16 object-contain"
+                              className="max-h-4 max-w-20 object-contain"
                             />
                           ) : (
-                            <span className="truncate text-xs text-soft">
+                            <span className="truncate font-cond text-xs uppercase text-soft">
                               {itemName(weapon, e.weapon)}
                             </span>
                           )}
-                          {e.armor && <ArmorPip heavy={/heavy/i.test(armor?.name ?? "")} />}
                         </span>
-                        <span className="text-right font-display font-semibold tabular text-white">
+                        <ArmorMark name={armor?.name} present={Boolean(e.armor)} />
+                        <span className="text-right font-cond text-base font-bold tabular text-bone">
                           {e.loadoutValue.toLocaleString()}
                         </span>
                       </>
                     ) : (
-                      <span className="col-span-2 text-right text-xs text-muted">
-                        No economy data
+                      <span className="col-span-3 text-right font-cond text-xs uppercase tracking-wider text-muted">
+                        No data
                       </span>
                     )}
                   </li>
@@ -116,21 +110,26 @@ export function EconomyPanel({ economy, players, selfTeam, player, lookup, afk }
           </section>
         );
       })}
-      <p className="text-xs text-muted">
-        Loadout is the value of what each player held this round. Buy labels use average loadout
-        (≥3900 full, ≥2000 half, ≥1000 light, otherwise eco).
+      <p className="text-xs leading-relaxed text-muted">
+        Loadout = value held this round. Buy type from team average: ≥3900 full, ≥2000 half, ≥1000
+        light, else eco.
       </p>
     </div>
   );
 }
 
-function ArmorPip({ heavy }: { heavy: boolean }) {
+function ArmorMark({ name, present }: { name: string | undefined; present: boolean }) {
+  if (!present) return <span />;
+  const heavy = /heavy/i.test(name ?? "");
   return (
-    <span
-      title={heavy ? "Heavy armor" : "Light armor"}
-      className={`ml-auto inline-block h-3.5 w-3 shrink-0 rounded-b-full rounded-t-sm border ${
-        heavy ? "border-sky-300 bg-sky-400/70" : "border-sky-300/70 bg-transparent"
-      }`}
-    />
+    <svg viewBox="0 0 12 14" className="h-3.5 w-3" aria-label={name ?? "Armor"}>
+      <title>{name ?? "Armor"}</title>
+      <path
+        d="M6 1 11 3v4c0 3-2.2 5.2-5 6-2.8-.8-5-3-5-6V3z"
+        fill={heavy ? "var(--color-bone)" : "none"}
+        stroke="var(--color-bone)"
+        strokeWidth="1.4"
+      />
+    </svg>
   );
 }

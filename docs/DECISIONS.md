@@ -134,3 +134,16 @@ positioned each frame by a projector inside it, with our own raycast for occlusi
 The generator builds routes from any map's callouts (spawns → lobby/main → site; defenders hold
 site points), and duels mostly pair nearby players. Sample matches now cover Ascent, Haven, Bind,
 and Lotus.
+
+## Visual style: tactical HUD, not game branding
+
+The owner asked for a look closer to the game and less "generic AI dashboard". The UI uses the
+game's general visual language:
+
+- **Colours:** navy ink, bone text, a red accent.
+- **Type:** tall condensed display caps (Bebas Neue) and condensed labels (Barlow Condensed).
+- **Shapes:** hard edges, cut corners, HUD corner brackets, and a kill feed tinted by side.
+
+It does **not** use Riot's logo, wordmark, or proprietary fonts. Our mark is a reticle with a rewind
+chevron, deliberately unlike the game's logo. Agent portraits, icons, and minimaps are hot-linked
+under the fan-content policy (see ASSETS.md).

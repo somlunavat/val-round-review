@@ -22,7 +22,9 @@ export type MapImages = z.infer<typeof MapImagesSchema>;
 
 export const ContentSchema = z.object({
   available: z.boolean(),
-  agents: z.array(ContentItemSchema.extend({ role: z.string().optional() })),
+  agents: z.array(
+    ContentItemSchema.extend({ role: z.string().optional(), portrait: z.string().optional() }),
+  ),
   weapons: z.array(ContentItemSchema),
   armor: z.array(ContentItemSchema),
   maps: z.array(MapImagesSchema),

@@ -17,8 +17,8 @@ import { LabelOverlay, LabelProjector, type LabelRegistry, type LabelSpec } from
 
 type KillEvent = Extract<RoundEvent, { type: "kill" }>;
 
-const ALLY = "#2ee6c0";
-const ENEMY = "#ff5c64";
+const ALLY = "#45e0bd";
+const ENEMY = "#ff4655";
 /** Player proportions in game units. */
 const PLAYER_RADIUS = 34;
 const PLAYER_HEIGHT = 180;
@@ -59,8 +59,8 @@ export default function Scene3D(props: Scene3DProps) {
         dpr={[1, 2]}
         gl={{ antialias: true }}
       >
-        <color attach="background" args={["#0b0e13"]} />
-        <fog attach="fog" args={["#0b0e13", 120, 260]} />
+        <color attach="background" args={["#0f1923"]} />
+        <fog attach="fog" args={["#0f1923", 120, 260]} />
         <hemisphereLight args={["#cfe3ff", "#1a2028", 0.9]} />
         <directionalLight position={[60, 120, 40]} intensity={1.6} />
         <directionalLight position={[-40, 60, -60]} intensity={0.4} />
@@ -260,7 +260,7 @@ function PlayerCapsule({
       {isSelf && (
         <mesh rotation-x={-Math.PI / 2} position={[0, 0.05, 0]}>
           <ringGeometry args={[radius * 1.5, radius * 2, 24]} />
-          <meshBasicMaterial color="white" transparent opacity={opacity} />
+          <meshBasicMaterial color="#ece8e1" transparent opacity={opacity} />
         </mesh>
       )}
       {/* Team-coloured disc so players read from far away. */}
@@ -293,13 +293,13 @@ function SpikeMarker({
       <mesh ref={ref}>
         <octahedronGeometry args={[size]} />
         <meshStandardMaterial
-          color={active ? "#ffc83d" : "#6b7280"}
-          emissive={active ? "#ffc83d" : "#000"}
+          color={active ? "#f5c542" : "#6b7280"}
+          emissive={active ? "#f5c542" : "#000"}
           emissiveIntensity={active ? 0.8 : 0}
           flatShading
         />
       </mesh>
-      {active && <pointLight color="#ffc83d" intensity={6} distance={12} />}
+      {active && <pointLight color="#f5c542" intensity={6} distance={12} />}
     </group>
   );
 }

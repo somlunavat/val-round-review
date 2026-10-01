@@ -1,19 +1,18 @@
 import { useCallback, useEffect, useMemo } from "react";
 import type { MatchReplay, RoundEvent, RoundReplay } from "@replay-lab/shared";
 import { mapDisplayName } from "@replay-lab/shared";
+import { CameraPanel, ViewSwitch } from "../components/CameraPanel.js";
 import { EconomyPanel } from "../components/EconomyPanel.js";
 import { ResultIcon } from "../components/Icons.js";
 import { KillFeed } from "../components/KillFeed.js";
-import { CameraPanel, ViewSwitch } from "../components/CameraPanel.js";
 import { MapView } from "../components/MapView.js";
 import { MatchList } from "../components/MatchList.js";
-import { Notice, Skeleton } from "../components/Notice.js";
+import { Notice, SectionLabel, Skeleton } from "../components/Notice.js";
 import type { PlayerInfo } from "../components/playerInfo.js";
 import { RoundStrip } from "../components/RoundStrip.js";
 import { Scoreboard } from "../components/Scoreboard.js";
 import { Scrubber } from "../components/Scrubber.js";
 import { mapConfigFor } from "../maps/index.js";
-import { Map3D } from "../three/Map3D.js";
 import {
   formatRoundTime,
   killsAtSnapshot,
@@ -25,32 +24,37 @@ import {
   timelineEnd,
 } from "../replay/select.js";
 import { useReview, type SidePanel } from "../state/store.js";
+import { Map3D } from "../three/Map3D.js";
 
 export function ReviewPage() {
   const { matches, replay, selectedMatchId, lookup, selectMatch, loadMatches } = useReview();
 
   return (
-    <div className="mx-auto grid max-w-[1600px] gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-      <aside className="space-y-3 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
-        <h2 className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
-          Your matches
-        </h2>
+    <div className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
+        <SectionLabel
+          right={
+            matches.status === "ready" ? String(matches.data.length).padStart(2, "0") : undefined
+          }
+        >
+          Match history
+        </SectionLabel>
         {(matches.status === "loading" || matches.status === "idle") && (
-          <div className="space-y-2">
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-[68px]" />
+            <Skeleton className="h-[68px]" />
+            <Skeleton className="h-[68px]" />
           </div>
         )}
         {matches.status === "error" && (
-          <Notice tone="error" title="Couldn't load your matches">
+          <Notice tone="error" title="Couldn't load matches">
             <p>{matches.message}</p>
             <button
               type="button"
               onClick={() => void loadMatches()}
-              className="mt-2 rounded-md border border-enemy/50 px-2 py-1 text-xs font-medium hover:bg-enemy/20"
+              className="mt-3 border border-red px-3 py-1 font-cond text-xs font-bold uppercase tracking-[0.18em] text-red hover:bg-red hover:text-ink"
             >
-              Try again
+              Retry
             </button>
           </Notice>
         )}
@@ -70,7 +74,7 @@ export function ReviewPage() {
         )}
         {replay.status === "loading" && (
           <div className="space-y-4">
-            <Skeleton className="h-20" />
+            <Skeleton className="h-32" />
             <Skeleton className="h-16" />
             <Skeleton className="aspect-square max-w-[760px]" />
           </div>
@@ -130,66 +134,75 @@ function MatchReview({ replay }: { replay: MatchReplay }) {
         : `${player(e.defuser).label} defused`;
   const minimapUrl = lookup.map(replay.mapId)?.minimap;
   const kills = snapshot ? killsAtSnapshot(round, snapshot) : [];
+  const seek = (next: number) => {
+    setPlaying(false);
+    setTime(next);
+  };
 
   return (
     <div className="space-y-5">
       <MatchHeader replay={replay} player={player} />
 
-      <RoundStrip
-        rounds={replay.rounds}
-        selected={roundIndex}
-        selfTeam={selfTeam}
-        onSelect={selectRound}
-      />
+      <div>
+        <SectionLabel right={`${replay.rounds.length} rounds`}>Rounds</SectionLabel>
+        <RoundStrip
+          rounds={replay.rounds}
+          selected={roundIndex}
+          selfTeam={selfTeam}
+          onSelect={selectRound}
+        />
+      </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-3">
           <div
-            className={`relative mx-auto w-full overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl shadow-black/50 ${
+            className={`hud-frame mx-auto w-full border border-line bg-surface ${
               state.view === "3d"
-                ? "aspect-[16/10] max-h-[calc(100vh-24rem)] min-h-[420px]"
-                : "aspect-square max-w-[min(100%,max(440px,calc(100vh-27rem)))]"
+                ? "aspect-[16/10] max-h-[calc(100vh-22rem)] min-h-[420px]"
+                : "aspect-square max-w-[min(100%,max(440px,calc(100vh-29rem)))]"
             }`}
           >
-            {!map ? (
-              <div className="grid h-full place-items-center p-6 text-center text-sm text-muted">
-                No calibration for {mapDisplayName(replay.mapId)} yet.
-              </div>
-            ) : state.view === "3d" ? (
-              <Map3D
-                map={map}
-                minimapUrl={minimapUrl}
-                snapshot={snapshot}
-                stale={snapshot !== undefined && snapshot.t < t}
-                kills={kills}
-                plant={plant}
-                defused={defused}
-                selfTeam={selfTeam}
-                selfPuuid={replay.selfPuuid}
-                labelOf={(puuid) => player(puuid).label}
-                cameraMode={state.cameraMode}
-                subject={state.pov.subject}
-                target={state.pov.target}
-                showCallouts={state.showCallouts}
-              />
-            ) : (
-              <MapView
-                map={map}
-                minimapUrl={minimapUrl}
-                snapshot={snapshot}
-                stale={snapshot !== undefined && snapshot.t < t}
-                kills={kills}
-                plant={plant}
-                defused={defused}
-                selfTeam={selfTeam}
-                selfPuuid={replay.selfPuuid}
-                agentOf={(puuid) => byPuuid.get(puuid)?.characterId}
-                labelOf={(puuid) => player(puuid).label}
-                lookup={lookup}
-                showCallouts={state.showCallouts}
-                showCalibration={state.showCalibration}
-              />
-            )}
+            <div className="absolute inset-0 overflow-hidden">
+              {!map ? (
+                <div className="grid h-full place-items-center p-6 text-center text-sm text-muted">
+                  No calibration for {mapDisplayName(replay.mapId)} yet.
+                </div>
+              ) : state.view === "3d" ? (
+                <Map3D
+                  map={map}
+                  minimapUrl={minimapUrl}
+                  snapshot={snapshot}
+                  stale={snapshot !== undefined && snapshot.t < t}
+                  kills={kills}
+                  plant={plant}
+                  defused={defused}
+                  selfTeam={selfTeam}
+                  selfPuuid={replay.selfPuuid}
+                  labelOf={(puuid) => player(puuid).label}
+                  cameraMode={state.cameraMode}
+                  subject={state.pov.subject}
+                  target={state.pov.target}
+                  showCallouts={state.showCallouts}
+                />
+              ) : (
+                <MapView
+                  map={map}
+                  minimapUrl={minimapUrl}
+                  snapshot={snapshot}
+                  stale={snapshot !== undefined && snapshot.t < t}
+                  kills={kills}
+                  plant={plant}
+                  defused={defused}
+                  selfTeam={selfTeam}
+                  selfPuuid={replay.selfPuuid}
+                  agentOf={(puuid) => byPuuid.get(puuid)?.characterId}
+                  labelOf={(puuid) => player(puuid).label}
+                  lookup={lookup}
+                  showCallouts={state.showCallouts}
+                  showCalibration={state.showCalibration}
+                />
+              )}
+            </div>
             <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 p-3">
               <PositionStatus snapshotT={snapshot?.t} source={snapshot?.source} t={t} />
               <div className="pointer-events-auto flex items-center gap-1.5">
@@ -205,26 +218,25 @@ function MatchReview({ replay }: { replay: MatchReplay }) {
               </div>
             </div>
             {state.view === "3d" && map && (
-              <div className="pointer-events-none absolute bottom-0 right-0 z-20 p-3">
-                <CameraPanel
-                  view={state.view}
-                  cameraMode={state.cameraMode}
-                  pov={state.pov}
-                  snapshot={snapshot}
-                  kills={kills}
-                  plantKnown={Boolean(plant?.pos)}
-                  labelOf={(puuid) => player(puuid).label}
-                  onView={state.setView}
-                  onCameraMode={state.setCameraMode}
-                  onPov={state.setPov}
-                />
-              </div>
-            )}
-            {state.view === "3d" && map && (
-              <div className="pointer-events-none absolute bottom-0 left-0 z-20 max-w-[45%] p-3 text-[11px] leading-snug text-muted">
-                Low-poly blockout generated from the minimap outline and callout heights. Walls and
-                floor heights are approximate.
-              </div>
+              <>
+                <div className="pointer-events-none absolute bottom-0 right-0 z-20 p-3">
+                  <CameraPanel
+                    view={state.view}
+                    cameraMode={state.cameraMode}
+                    pov={state.pov}
+                    snapshot={snapshot}
+                    kills={kills}
+                    plantKnown={Boolean(plant?.pos)}
+                    labelOf={(puuid) => player(puuid).label}
+                    onView={state.setView}
+                    onCameraMode={state.setCameraMode}
+                    onPov={state.setPov}
+                  />
+                </div>
+                <div className="pointer-events-none absolute bottom-0 left-0 z-20 max-w-[45%] p-3 font-cond text-[11px] font-semibold uppercase leading-snug tracking-[0.12em] text-muted">
+                  Blockout generated from minimap + callout heights · approximate
+                </div>
+              </>
             )}
           </div>
 
@@ -235,10 +247,7 @@ function MatchReview({ replay }: { replay: MatchReplay }) {
             plantWindow={plantWindow(round, end)}
             playing={playing}
             speed={speed}
-            onSeek={(next) => {
-              setPlaying(false);
-              setTime(next);
-            }}
+            onSeek={seek}
             onTogglePlay={() => {
               if (!playing && t >= end) setTime(0);
               setPlaying(!playing);
@@ -251,44 +260,18 @@ function MatchReview({ replay }: { replay: MatchReplay }) {
         </div>
 
         <div className="space-y-4">
-          <div
-            className={`flex items-center gap-4 rounded-2xl border p-4 ${
-              won
-                ? "border-ally/30 bg-gradient-to-br from-ally-dim/70 to-panel"
-                : "border-enemy/30 bg-gradient-to-br from-enemy-dim/70 to-panel"
-            }`}
-          >
-            <div
-              className={`grid h-12 w-12 place-items-center rounded-xl ${won ? "bg-ally text-ink" : "bg-enemy text-ink"}`}
-            >
-              <ResultIcon result={round.resultType} size={24} strokeWidth={2.25} />
-            </div>
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
-                Round {round.roundNum + 1}
-              </div>
-              <div
-                className={`font-display text-2xl font-bold uppercase ${won ? "text-ally" : "text-enemy"}`}
-              >
-                {won ? "Won" : "Lost"}
-              </div>
-              <div className="text-sm text-soft">{resultText(round.resultType)}</div>
-            </div>
-          </div>
+          <RoundResult round={round} won={won} />
 
-          <div className="rounded-2xl border border-line bg-panel">
+          <div className="border border-line bg-panel">
             <Tabs panel={state.panel} onChange={state.setPanel} />
-            <div className="max-h-[calc(100vh-22rem)] min-h-64 overflow-y-auto p-3">
+            <div className="max-h-[calc(100vh-24rem)] min-h-64 overflow-y-auto p-3">
               {state.panel === "feed" && (
                 <KillFeed
                   events={round.events}
                   t={t}
                   player={player}
                   weaponIcon={(id) => lookup.weapon(id)}
-                  onSeek={(next) => {
-                    setPlaying(false);
-                    setTime(next);
-                  }}
+                  onSeek={seek}
                 />
               )}
               {state.panel === "economy" && (
@@ -306,11 +289,19 @@ function MatchReview({ replay }: { replay: MatchReplay }) {
               )}
             </div>
           </div>
-          <p className="px-1 text-xs text-muted">
-            Shortcuts: <Kbd>Space</Kbd> play · <Kbd>←</Kbd>
-            <Kbd>→</Kbd> events · <Kbd>[</Kbd>
-            <Kbd>]</Kbd> rounds
-          </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 font-cond text-[11px] font-semibold uppercase tracking-[0.15em] text-muted">
+            <span>
+              <Kbd>Space</Kbd> Play
+            </span>
+            <span>
+              <Kbd>←</Kbd>
+              <Kbd>→</Kbd> Events
+            </span>
+            <span>
+              <Kbd>[</Kbd>
+              <Kbd>]</Kbd> Rounds
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -329,68 +320,100 @@ function MatchHeader({
   const lost = replay.rounds.length - won;
   const self = replay.players.find((p) => p.isSelf);
   const me = self ? player(self.puuid) : undefined;
-  const thumb = useReview((s) => s.lookup.map(replay.mapId)?.thumbnail);
+  const lookup = useReview((s) => s.lookup);
+  const thumb = lookup.map(replay.mapId)?.thumbnail;
+  const portrait = lookup.agent(self?.characterId)?.portrait;
   const victory = won > lost;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-line bg-panel">
+    <div className="relative h-28 overflow-hidden border border-line bg-panel">
       {thumb && (
         <img
           src={thumb}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover opacity-30"
+          className="absolute inset-0 h-full w-full object-cover opacity-35"
           onError={(e) => (e.currentTarget.style.display = "none")}
         />
       )}
-      <div className="absolute inset-0 bg-gradient-to-r from-panel via-panel/90 to-panel/40" />
-      <div className="relative flex flex-wrap items-center gap-x-8 gap-y-3 px-5 py-4">
+      <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/85 to-ink/20" />
+      <div className={`absolute inset-y-0 left-0 w-1.5 ${victory ? "bg-ally" : "bg-red"}`} />
+      {portrait && (
+        <img
+          src={portrait}
+          alt=""
+          className="pointer-events-none absolute -bottom-20 right-4 h-[260px] object-contain drop-shadow-[0_0_30px_rgba(0,0,0,0.6)]"
+          onError={(e) => (e.currentTarget.style.display = "none")}
+        />
+      )}
+      <div className="relative flex h-full items-center gap-10 pl-8 pr-56">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+          <div className="hud-label">
             {new Date(replay.gameStartMillis).toLocaleString(undefined, {
               dateStyle: "medium",
               timeStyle: "short",
             })}
           </div>
-          <h2 className="font-display text-3xl font-bold uppercase tracking-wide">
+          <h2 className="mt-1 font-display text-[52px] leading-none tracking-wide text-bone">
             {mapDisplayName(replay.mapId)}
           </h2>
         </div>
-        <div className="flex items-center gap-3 font-display">
-          <span className="text-4xl font-bold tabular text-ally">{won}</span>
-          <span className="text-2xl text-muted">:</span>
-          <span className="text-4xl font-bold tabular text-enemy">{lost}</span>
-          <span
-            className={`ml-2 rounded-md px-2 py-0.5 text-sm font-bold uppercase tracking-wider ${
-              victory ? "bg-ally text-ink" : "bg-enemy text-ink"
-            }`}
+        <div className="border-l border-line pl-8">
+          <div
+            className={`font-cond text-sm font-bold uppercase tracking-[0.3em] ${victory ? "text-ally" : "text-red"}`}
           >
             {victory ? "Victory" : "Defeat"}
-          </span>
+          </div>
+          <div className="font-display text-[52px] leading-none tabular">
+            <span className="text-ally">{won}</span>
+            <span className="mx-2 text-muted">–</span>
+            <span className="text-red">{lost}</span>
+          </div>
         </div>
-        {self && me && (
-          <div className="ml-auto flex items-center gap-3">
-            {me.agentIcon && (
-              <img
-                src={me.agentIcon}
-                alt={me.agentName ?? ""}
-                className="h-12 w-12 rounded-xl border-2 border-white/70 bg-raised"
-              />
-            )}
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
-                You{me.agentName ? ` · ${me.agentName}` : ""}
-              </div>
-              {self.stats && (
-                <div className="font-display text-xl font-bold tabular">
-                  {self.stats.kills} / {self.stats.deaths} / {self.stats.assists}
-                  <span className="ml-2 text-xs font-medium uppercase tracking-wider text-muted">
-                    K / D / A
-                  </span>
-                </div>
-              )}
+        {self?.stats && (
+          <div className="hidden border-l border-line pl-8 md:block">
+            <div className="hud-label">{me?.agentName ? `You · ${me.agentName}` : "You"}</div>
+            <div className="mt-1 flex gap-6 font-display text-4xl leading-none tabular text-bone">
+              <Stat label="K" value={self.stats.kills} />
+              <Stat label="D" value={self.stats.deaths} />
+              <Stat label="A" value={self.stats.assists} />
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="flex items-baseline gap-1.5">
+      {value}
+      <span className="font-cond text-xs font-bold tracking-[0.2em] text-muted">{label}</span>
+    </span>
+  );
+}
+
+function RoundResult({ round, won }: { round: RoundReplay; won: boolean }) {
+  return (
+    <div
+      className={`cut relative flex items-center gap-4 overflow-hidden p-4 ${won ? "bg-ally-dim" : "bg-enemy-dim"}`}
+    >
+      <div className={`absolute inset-y-0 left-0 w-1 ${won ? "bg-ally" : "bg-red"}`} />
+      <div
+        className={`grid h-14 w-14 shrink-0 place-items-center ${won ? "bg-ally text-ink" : "bg-red text-ink"}`}
+      >
+        <ResultIcon result={round.resultType} size={28} strokeWidth={2.2} />
+      </div>
+      <div>
+        <div className="hud-label">Round {String(round.roundNum + 1).padStart(2, "0")}</div>
+        <div
+          className={`font-display text-4xl leading-none tracking-wide ${won ? "text-ally" : "text-red"}`}
+        >
+          {won ? "Round won" : "Round lost"}
+        </div>
+        <div className="mt-0.5 font-cond text-sm font-semibold uppercase tracking-[0.15em] text-soft">
+          {resultText(round.resultType)}
+        </div>
       </div>
     </div>
   );
@@ -407,24 +430,26 @@ function PositionStatus({
   t: number;
 }) {
   const base =
-    "pointer-events-auto max-w-[70%] rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur-md";
+    "pointer-events-auto flex max-w-[65%] items-center gap-2 border bg-ink/90 px-3 py-1.5 font-cond text-xs font-bold uppercase tracking-[0.14em]";
   if (snapshotT === undefined) {
     return (
-      <div className={`${base} border-line bg-ink/80 text-soft`}>
-        No known positions yet: the API only records them at kills, plants, and defuses.
+      <div className={`${base} border-line text-soft`}>
+        <span className="h-2 w-2 shrink-0 border border-soft" />
+        No positions yet · kill/plant/defuse only
       </div>
     );
   }
   if (snapshotT < t) {
     return (
-      <div className={`${base} border-spike/40 bg-ink/80 text-spike`}>
-        Last known positions · {formatRoundTime(snapshotT)} {source} · now unknown
+      <div className={`${base} border-spike/60 text-spike`}>
+        <span className="h-2 w-2 shrink-0 bg-spike/40 outline outline-1 outline-spike" />
+        Last known · {formatRoundTime(snapshotT)} {source} · now unknown
       </div>
     );
   }
   return (
-    <div className={`${base} border-ally/40 bg-ink/80 text-ally`}>
-      <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-ally align-middle" />
+    <div className={`${base} border-ally/60 text-ally`}>
+      <span className="h-2 w-2 shrink-0 bg-ally" />
       Known positions · {formatRoundTime(snapshotT)} {source}
     </div>
   );
@@ -436,10 +461,8 @@ function Toggle({ on, onClick, children }: { on: boolean; onClick: () => void; c
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={`rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur-md transition ${
-        on
-          ? "border-white/40 bg-white/15 text-white"
-          : "border-line bg-ink/70 text-muted hover:text-soft"
+      className={`border px-3 py-1 font-cond text-xs font-bold uppercase tracking-[0.18em] transition ${
+        on ? "border-bone bg-ink/90 text-bone" : "border-line bg-ink/90 text-muted hover:text-bone"
       }`}
     >
       {children}
@@ -455,11 +478,7 @@ const TABS: { id: SidePanel; label: string }[] = [
 
 function Tabs({ panel, onChange }: { panel: SidePanel; onChange: (p: SidePanel) => void }) {
   return (
-    <div
-      className="flex gap-1 border-b border-line p-1.5"
-      role="tablist"
-      aria-label="Round details"
-    >
+    <div className="flex border-b border-line" role="tablist" aria-label="Round details">
       {TABS.map((tab) => (
         <button
           key={tab.id}
@@ -467,11 +486,12 @@ function Tabs({ panel, onChange }: { panel: SidePanel; onChange: (p: SidePanel) 
           role="tab"
           aria-selected={panel === tab.id}
           onClick={() => onChange(tab.id)}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
-            panel === tab.id ? "bg-raised text-white" : "text-muted hover:text-soft"
+          className={`relative flex-1 px-3 py-3 font-cond text-sm font-bold uppercase tracking-[0.18em] transition ${
+            panel === tab.id ? "text-bone" : "text-muted hover:text-soft"
           }`}
         >
           {tab.label}
+          {panel === tab.id && <span className="absolute inset-x-3 bottom-0 h-[3px] bg-red" />}
         </button>
       ))}
     </div>
@@ -480,7 +500,7 @@ function Tabs({ panel, onChange }: { panel: SidePanel; onChange: (p: SidePanel) 
 
 function Kbd({ children }: { children: string }) {
   return (
-    <kbd className="mx-0.5 rounded border border-line bg-surface px-1.5 py-0.5 font-sans text-[10px] text-soft">
+    <kbd className="mr-0.5 inline-block min-w-5 border border-line bg-surface px-1 py-px text-center font-cond text-[10px] text-bone">
       {children}
     </kbd>
   );
@@ -493,7 +513,7 @@ function resultText(result: string): string {
     case "Bomb defused":
       return "Spike defused";
     case "Round timer expired":
-      return "Time ran out";
+      return "Time expired";
     case "Eliminated":
       return "Team eliminated";
     default:
@@ -526,7 +546,12 @@ function usePlayback(end: number) {
 function useShortcuts(round: RoundReplay | undefined, roundCount: number) {
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
-      if (ev.target instanceof HTMLInputElement || ev.target instanceof HTMLTextAreaElement) return;
+      if (
+        ev.target instanceof HTMLInputElement ||
+        ev.target instanceof HTMLTextAreaElement ||
+        ev.target instanceof HTMLSelectElement
+      )
+        return;
       const s = useReview.getState();
       if (ev.key === " ") {
         ev.preventDefault();

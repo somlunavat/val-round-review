@@ -11,6 +11,7 @@ const AgentSchema = z.object({
   uuid: z.string(),
   displayName: z.string(),
   displayIcon: z.string().nullish(),
+  fullPortrait: z.string().nullish(),
   role: z.object({ displayName: z.string() }).nullish(),
 });
 const WeaponSchema = z.object({
@@ -61,6 +62,7 @@ export async function fetchContent(fetchImpl: typeof fetch = fetch): Promise<Con
       name: a.displayName,
       ...icon(a.displayIcon),
       ...(a.role ? { role: a.role.displayName } : {}),
+      ...(a.fullPortrait ? { portrait: a.fullPortrait } : {}),
     })),
     weapons: weapons.map((w) => ({
       id: w.uuid.toLowerCase(),
