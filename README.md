@@ -11,6 +11,7 @@ pnpm install
 pnpm dev          # web (Vite) + server (Fastify), fixtures only, no network
 pnpm test
 pnpm test:e2e     # Playwright smoke tests (uses installed Chrome locally)
+pnpm maps:sync    # refresh map calibration + callouts from valorant-api.com
 pnpm lint
 pnpm typecheck
 ```

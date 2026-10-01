@@ -16,6 +16,11 @@ type Load<T> =
   | { status: "ready"; data: T };
 
 export type SidePanel = "feed" | "economy" | "scoreboard";
+export type ViewMode = "2d" | "3d";
+export type CameraMode = "orbit" | "top" | "follow" | "pov";
+
+/** Whose eyes the 3D camera uses, and what it is aimed at. */
+export type PovSelection = { subject: string | undefined; target: string | undefined };
 
 type ReviewState = {
   session: Load<SessionInfo>;
@@ -32,6 +37,9 @@ type ReviewState = {
   panel: SidePanel;
   showCalibration: boolean;
   showCallouts: boolean;
+  view: ViewMode;
+  cameraMode: CameraMode;
+  pov: PovSelection;
   init: () => Promise<void>;
   loadMatches: () => Promise<void>;
   selectMatch: (matchId: string) => Promise<void>;
@@ -42,6 +50,9 @@ type ReviewState = {
   setPanel: (panel: SidePanel) => void;
   toggleCalibration: () => void;
   toggleCallouts: () => void;
+  setView: (view: ViewMode) => void;
+  setCameraMode: (mode: CameraMode) => void;
+  setPov: (pov: Partial<PovSelection>) => void;
 };
 
 export const useReview = create<ReviewState>((set, get) => ({
@@ -58,6 +69,9 @@ export const useReview = create<ReviewState>((set, get) => ({
   panel: "feed",
   showCalibration: false,
   showCallouts: true,
+  view: "2d",
+  cameraMode: "orbit",
+  pov: { subject: undefined, target: undefined },
 
   init: async () => {
     // Content is decoration: failures leave the lookup empty and the UI falls back to ids.
@@ -111,4 +125,7 @@ export const useReview = create<ReviewState>((set, get) => ({
   setPanel: (panel) => set({ panel }),
   toggleCalibration: () => set((s) => ({ showCalibration: !s.showCalibration })),
   toggleCallouts: () => set((s) => ({ showCallouts: !s.showCallouts })),
+  setView: (view) => set({ view }),
+  setCameraMode: (cameraMode) => set({ cameraMode }),
+  setPov: (pov) => set((s) => ({ pov: { ...s.pov, ...pov } })),
 }));

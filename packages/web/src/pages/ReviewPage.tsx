@@ -4,6 +4,7 @@ import { mapDisplayName } from "@replay-lab/shared";
 import { EconomyPanel } from "../components/EconomyPanel.js";
 import { ResultIcon } from "../components/Icons.js";
 import { KillFeed } from "../components/KillFeed.js";
+import { CameraPanel, ViewSwitch } from "../components/CameraPanel.js";
 import { MapView } from "../components/MapView.js";
 import { MatchList } from "../components/MatchList.js";
 import { Notice, Skeleton } from "../components/Notice.js";
@@ -12,6 +13,7 @@ import { RoundStrip } from "../components/RoundStrip.js";
 import { Scoreboard } from "../components/Scoreboard.js";
 import { Scrubber } from "../components/Scrubber.js";
 import { mapConfigFor } from "../maps/index.js";
+import { Map3D } from "../three/Map3D.js";
 import {
   formatRoundTime,
   killsAtSnapshot,
@@ -127,6 +129,7 @@ function MatchReview({ replay }: { replay: MatchReplay }) {
         ? `${player(e.planter).label} planted on ${e.site}`
         : `${player(e.defuser).label} defused`;
   const minimapUrl = lookup.map(replay.mapId)?.minimap;
+  const kills = snapshot ? killsAtSnapshot(round, snapshot) : [];
 
   return (
     <div className="space-y-5">
@@ -141,14 +144,41 @@ function MatchReview({ replay }: { replay: MatchReplay }) {
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="min-w-0 space-y-3">
-          <div className="relative mx-auto aspect-square w-full max-w-[min(100%,max(440px,calc(100vh-27rem)))] overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl shadow-black/50">
-            {map ? (
+          <div
+            className={`relative mx-auto w-full overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl shadow-black/50 ${
+              state.view === "3d"
+                ? "aspect-[16/10] max-h-[calc(100vh-24rem)] min-h-[420px]"
+                : "aspect-square max-w-[min(100%,max(440px,calc(100vh-27rem)))]"
+            }`}
+          >
+            {!map ? (
+              <div className="grid h-full place-items-center p-6 text-center text-sm text-muted">
+                No calibration for {mapDisplayName(replay.mapId)} yet.
+              </div>
+            ) : state.view === "3d" ? (
+              <Map3D
+                map={map}
+                minimapUrl={minimapUrl}
+                snapshot={snapshot}
+                stale={snapshot !== undefined && snapshot.t < t}
+                kills={kills}
+                plant={plant}
+                defused={defused}
+                selfTeam={selfTeam}
+                selfPuuid={replay.selfPuuid}
+                labelOf={(puuid) => player(puuid).label}
+                cameraMode={state.cameraMode}
+                subject={state.pov.subject}
+                target={state.pov.target}
+                showCallouts={state.showCallouts}
+              />
+            ) : (
               <MapView
                 map={map}
                 minimapUrl={minimapUrl}
                 snapshot={snapshot}
                 stale={snapshot !== undefined && snapshot.t < t}
-                kills={snapshot ? killsAtSnapshot(round, snapshot) : []}
+                kills={kills}
                 plant={plant}
                 defused={defused}
                 selfTeam={selfTeam}
@@ -159,23 +189,43 @@ function MatchReview({ replay }: { replay: MatchReplay }) {
                 showCallouts={state.showCallouts}
                 showCalibration={state.showCalibration}
               />
-            ) : (
-              <div className="grid h-full place-items-center p-6 text-center text-sm text-muted">
-                No minimap calibration for {mapDisplayName(replay.mapId)} yet. Only Ascent is set up
-                so far.
-              </div>
             )}
-            <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 p-3">
               <PositionStatus snapshotT={snapshot?.t} source={snapshot?.source} t={t} />
-              <div className="pointer-events-auto flex gap-1.5">
+              <div className="pointer-events-auto flex items-center gap-1.5">
+                <ViewSwitch view={state.view} onView={state.setView} />
                 <Toggle on={state.showCallouts} onClick={state.toggleCallouts}>
                   Callouts
                 </Toggle>
-                <Toggle on={state.showCalibration} onClick={state.toggleCalibration}>
-                  Grid
-                </Toggle>
+                {state.view === "2d" && (
+                  <Toggle on={state.showCalibration} onClick={state.toggleCalibration}>
+                    Grid
+                  </Toggle>
+                )}
               </div>
             </div>
+            {state.view === "3d" && map && (
+              <div className="pointer-events-none absolute bottom-0 right-0 z-20 p-3">
+                <CameraPanel
+                  view={state.view}
+                  cameraMode={state.cameraMode}
+                  pov={state.pov}
+                  snapshot={snapshot}
+                  kills={kills}
+                  plantKnown={Boolean(plant?.pos)}
+                  labelOf={(puuid) => player(puuid).label}
+                  onView={state.setView}
+                  onCameraMode={state.setCameraMode}
+                  onPov={state.setPov}
+                />
+              </div>
+            )}
+            {state.view === "3d" && map && (
+              <div className="pointer-events-none absolute bottom-0 left-0 z-20 max-w-[45%] p-3 text-[11px] leading-snug text-muted">
+                Low-poly blockout generated from the minimap outline and callout heights. Walls and
+                floor heights are approximate.
+              </div>
+            )}
           </div>
 
           <Scrubber

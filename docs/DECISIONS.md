@@ -99,3 +99,38 @@ returns `available: false` and the UI shows ids and plain styling.
 
 Map markers and panels show "You", or the agent's name and icon, coloured ally/enemy. Riot names are
 still never sent to the browser. When content is unavailable, labels fall back to "Ally N"/"Enemy N".
+
+## Procedural 3D blockouts for every map
+
+CLAUDE.md §8 says to start with one hand-built map. The owner asked for every map, and
+hand-modelling 13 maps wouldn't scale, so each blockout is generated from data we already have:
+the minimap's walkable footprint and the callout heights. Ascent was checked first, then Haven,
+Bind, and Lotus. The geometry is approximate: lanes and sites are in the right place, but heights
+are blended from about 20 points per map and the 160-cell grid misses thin geometry. Hand-tuned
+overrides per map can come later if needed.
+
+## POV = recorded position + chosen aim
+
+The API gives positions at events, and maybe a facing angle (`viewRadians`, unverified). POV puts the
+camera at the chosen player's recorded position at eye height (160 units), aimed at a player the
+viewer picks. For a kill, "Killer's view" and "Victim's view" pre-select the pair. The panel says
+the real view direction isn't in the data. Facing isn't used until `viewRadians` is verified against
+a real response. Eyes that land inside a blockout wall are moved onto the nearest open floor.
+
+## Sight-line labels are marked approximate
+
+In POV, a label whose sight line from the camera hits blockout geometry is dimmed and tagged
+"out of sight (approx.)". This is a hint from simplified geometry, not a verdict. Phase 3's
+"could I have seen them?" flag will need its own evidence display.
+
+## Labels are projected DOM, not drei <Html>
+
+drei's `<Html>` mounts a React root per label. Under React 19 that threw `removeChild` errors when
+the canvas unmounted (switching matches in 3D). Labels are now one DOM list outside the canvas,
+positioned each frame by a projector inside it, with our own raycast for occlusion.
+
+## Fixture matches on several maps
+
+The generator builds routes from any map's callouts (spawns → lobby/main → site; defenders hold
+site points), and duels mostly pair nearby players. Sample matches now cover Ascent, Haven, Bind,
+and Lotus.
