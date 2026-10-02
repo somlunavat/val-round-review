@@ -1,7 +1,6 @@
 # Replay Lab
 
 Review key moments from your own VALORANT matches: a 2D round scrubber now, a 3D blockout later.
-See `CLAUDE.md` for the full brief.
 
 ## Features
 
