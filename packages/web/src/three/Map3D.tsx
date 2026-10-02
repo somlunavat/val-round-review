@@ -20,7 +20,7 @@ export function Map3D({ minimapUrl, ...scene }: Props) {
   if (state.status === "loading") return <Loading text="Building blockout…" />;
   return (
     <Suspense fallback={<Loading text="Loading 3D…" />}>
-      <Scene3D {...scene} blockout={state.blockout} />
+      <Scene3D {...scene} blockout={state.blockout} minimap={state.image} />
     </Suspense>
   );
 }

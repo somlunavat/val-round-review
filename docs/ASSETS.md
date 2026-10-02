@@ -36,6 +36,8 @@ The 3D maps are **our own procedural low-poly geometry**, built in the browser a
   (sampled on a 160×160 grid).
 - **Floor heights:** blended from the callout points' z values and snapped to 75-unit terraces.
 - **Walls:** placed on every walkable/empty boundary.
+- **Detail:** the minimap's grey tones lift boxes/low cover and high ground, and the minimap image is
+  drawn onto floor tops as a texture (hot-linked, as above).
 
 No game-client geometry, textures, or models are used, and no generated geometry is committed. The
 result is approximate. The UI says so in the 3D view and in the POV sight-line labels.

@@ -2,10 +2,11 @@
  * Procedural low-poly blockout for any map.
  *
  * The walkable footprint comes from the minimap's opaque pixels (sampled at
- * runtime, never stored). Floor heights come from callout points' z values,
- * blended by inverse distance and snapped to terraces. Walls go wherever a
- * walkable cell meets empty space. The result is our own simplified geometry:
- * it gets lanes and sites roughly right and is approximate everywhere else.
+ * runtime, never stored). The minimap's grey tones mark local detail: base
+ * floor, low cover (boxes, pillars, small platforms), and high ground. Floor
+ * height is a regional base blended from callout z values, plus a lift for low
+ * cover and high ground. Walls go wherever a walkable cell meets empty space.
+ * The result is our own simplified geometry: approximate, but shaped by each map.
  */
 import {
   GRID,
@@ -20,8 +21,65 @@ export { GRID, maskFromAlpha, type Mask };
 
 /** Scene units across the whole minimap (x and z span 0..SCENE). */
 export const SCENE = 100;
-/** Height snapping step, in game units. */
+/** Height snapping step for the regional base, in game units. */
 const TERRACE = 75;
+/** Grid resolution for the 3D blockout (finer than the sight-line mask). */
+export const GRID_3D = 256;
+
+/** Minimap tone per cell: 0 empty, 1 floor, 2 low cover, 3 high ground. */
+export type Tone = 0 | 1 | 2 | 3;
+/** Lift above the regional base for each tone, in game units. */
+export const TONE_LIFT: Record<Tone, number> = { 0: 0, 1: 0, 2: 110, 3: 230 };
+
+/** Classifies one minimap pixel; undefined for outlines/edges that shouldn't vote. */
+export function pixelTone(r: number, g: number, b: number): Tone | undefined {
+  if (r - b > 20) return 1; // yellow plant-site tint sits on floor level
+  if (r >= 225) return undefined; // white wall outline
+  if (r >= 150) return undefined; // light ledge edge
+  if (r >= 136) return 3;
+  if (r >= 120) return 2;
+  return 1;
+}
+
+/**
+ * Walkable mask plus a tone per cell, sampled on a 4×4 lattice per cell.
+ * `rgba(x, y)` returns the pixel as [r, g, b, a].
+ */
+export function tonesFromImage(
+  rgba: (x: number, y: number) => readonly [number, number, number, number],
+  imageSize: number,
+  size = GRID_3D,
+): { mask: Mask; tones: Uint8Array } {
+  const cells = new Uint8Array(size * size);
+  const tones = new Uint8Array(size * size);
+  const step = imageSize / size;
+  for (let j = 0; j < size; j++) {
+    for (let i = 0; i < size; i++) {
+      let opaque = 0;
+      const votes = [0, 0, 0, 0];
+      for (let sy = 0; sy < 4; sy++) {
+        for (let sx = 0; sx < 4; sx++) {
+          const x = Math.min(imageSize - 1, Math.floor((i + (sx + 0.5) / 4) * step));
+          const y = Math.min(imageSize - 1, Math.floor((j + (sy + 0.5) / 4) * step));
+          const [r, g, b, a] = rgba(x, y);
+          if (a <= 96) continue;
+          opaque++;
+          const t = pixelTone(r, g, b);
+          if (t !== undefined) votes[t] = (votes[t] ?? 0) + 1;
+        }
+      }
+      const k = j * size + i;
+      if (opaque / 16 <= 0.5) continue;
+      cells[k] = 1;
+      const best = ([1, 2, 3] as const).reduce(
+        (a, t) => ((votes[t] ?? 0) > (votes[a] ?? 0) ? t : a),
+        1 as Tone,
+      );
+      tones[k] = best;
+    }
+  }
+  return { mask: { size, cells }, tones };
+}
 /** Wall height above the floor, in game units. */
 export const WALL_HEIGHT = 450;
 
@@ -151,9 +209,11 @@ export function boundaryWalls(mask: Mask, heights: Float32Array): Wall[] {
   return walls;
 }
 
-export function buildBlockout(map: MapData, mask: Mask): Blockout {
+export function buildBlockout(map: MapData, mask: Mask, tones?: Uint8Array): Blockout {
   const { size, cells } = mask;
-  const field = heightField(map);
+  // With tones, the regional base comes from callouts standing on base floor, so
+  // high-ground callouts don't raise the floor around them twice.
+  const field = heightField(tones ? floorCallouts(map, size, tones) : map);
   const heights = new Float32Array(size * size).fill(Number.NaN);
   let minHeight = Infinity;
   let maxHeight = -Infinity;
@@ -161,7 +221,8 @@ export function buildBlockout(map: MapData, mask: Mask): Blockout {
     for (let i = 0; i < size; i++) {
       const k = j * size + i;
       if (!cells[k]) continue;
-      const z = Math.round(field((i + 0.5) / size, (j + 0.5) / size) / TERRACE) * TERRACE;
+      const base = Math.round(field((i + 0.5) / size, (j + 0.5) / size) / TERRACE) * TERRACE;
+      const z = base + TONE_LIFT[(tones?.[k] ?? 1) as Tone];
       heights[k] = z;
       minHeight = Math.min(minHeight, z);
       maxHeight = Math.max(maxHeight, z);
@@ -181,6 +242,16 @@ export function buildBlockout(map: MapData, mask: Mask): Blockout {
     maxHeight,
     unit: SCENE * Math.abs(map.xMultiplier),
   };
+}
+
+/** The map with only callouts whose cell is base floor (if enough of them exist). */
+function floorCallouts(map: MapData, size: number, tones: Uint8Array): MapData {
+  const onFloor = map.callouts.filter((c) => {
+    const n = toNormalized(map, c.pos);
+    const k = Math.floor(n.y * size) * size + Math.floor(n.x * size);
+    return tones[k] === 1;
+  });
+  return onFloor.length >= 4 ? { ...map, callouts: onFloor } : map;
 }
 
 /** Converts between game coordinates and the 3D scene. Height is scene Y. */

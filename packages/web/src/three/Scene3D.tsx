@@ -11,6 +11,7 @@ import type {
   Vec2,
 } from "@replay-lab/shared";
 import type { CameraMode } from "../state/store.js";
+import { paletteFor } from "../maps/palettes.js";
 import { BlockoutMesh } from "./BlockoutMesh.js";
 import { clearOfWalls, SCENE, sceneMapping, type Blockout, type SceneMapping } from "./blockout.js";
 import { LabelOverlay, LabelProjector, type LabelRegistry, type LabelSpec } from "./labels.js";
@@ -27,6 +28,8 @@ const EYE_HEIGHT = 160;
 export type Scene3DProps = {
   map: MapData;
   blockout: Blockout;
+  /** Minimap image, draped over the floors. */
+  minimap?: HTMLImageElement;
   snapshot: Snapshot | undefined;
   stale: boolean;
   kills: KillEvent[];
@@ -51,6 +54,7 @@ export default function Scene3D(props: Scene3DProps) {
   const scale = pov ? 1 : 3.2;
   const registry = useRef<LabelRegistry>(new Map());
   const labels = useLabelSpecs(props, mapping, scale);
+  const palette = useMemo(() => paletteFor(props.map.mapPath), [props.map.mapPath]);
 
   return (
     <div className="relative h-full w-full">
@@ -59,13 +63,18 @@ export default function Scene3D(props: Scene3DProps) {
         dpr={[1, 2]}
         gl={{ antialias: true }}
       >
-        <color attach="background" args={["#0f1923"]} />
-        <fog attach="fog" args={["#0f1923", 120, 260]} />
-        <hemisphereLight args={["#cfe3ff", "#1a2028", 0.9]} />
-        <directionalLight position={[60, 120, 40]} intensity={1.6} />
-        <directionalLight position={[-40, 60, -60]} intensity={0.4} />
+        <color attach="background" args={[palette.sky]} />
+        <fog attach="fog" args={[palette.sky, 120, 260]} />
+        <hemisphereLight args={["#dfe8f5", "#1a2028", 0.85]} />
+        <directionalLight position={[60, 120, 40]} intensity={1.7} color={palette.light} />
+        <directionalLight position={[-40, 60, -60]} intensity={0.45} />
 
-        <BlockoutMesh map={props.map} blockout={props.blockout} wallScale={pov ? 1 : 0.55} />
+        <BlockoutMesh
+          blockout={props.blockout}
+          palette={palette}
+          minimap={props.minimap}
+          wallScale={pov ? 1 : 0.55}
+        />
 
         {props.plant?.pos && (
           <SpikeMarker

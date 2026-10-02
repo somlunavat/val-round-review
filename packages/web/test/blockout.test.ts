@@ -8,7 +8,10 @@ import {
   greedyRects,
   heightField,
   maskFromAlpha,
+  pixelTone,
   sceneMapping,
+  tonesFromImage,
+  TONE_LIFT,
   type Mask,
 } from "../src/three/blockout.js";
 import { toNormalized } from "../src/maps/calibration.js";
@@ -109,5 +112,37 @@ describe("clearOfWalls", () => {
       x: 2 * cell,
       z: 2 * cell,
     });
+  });
+});
+
+describe("minimap tones", () => {
+  it("classifies floor, low cover, high ground, sites, and outlines", () => {
+    expect(pixelTone(112, 112, 112)).toBe(1);
+    expect(pixelTone(128, 128, 128)).toBe(2);
+    expect(pixelTone(144, 144, 144)).toBe(3);
+    expect(pixelTone(144, 144, 112)).toBe(1); // yellow plant site sits on floor
+    expect(pixelTone(240, 240, 240)).toBeUndefined();
+  });
+
+  it("raises boxes and high ground above the surrounding floor", () => {
+    // 3×3 image: left column floor, middle low cover, right high ground.
+    const shade = [112, 128, 144];
+    const { mask, tones } = tonesFromImage(
+      (x) => {
+        const v = shade[x] ?? 112;
+        return [v, v, v, 255] as const;
+      },
+      3,
+      3,
+    );
+    expect([...mask.cells]).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    expect([...tones.slice(0, 3)]).toEqual([1, 2, 3]);
+    // A level map (every callout at z = 0) makes the regional base 0 everywhere.
+    const level = {
+      ...ascent,
+      callouts: ascent.callouts.map((c) => ({ ...c, pos: { ...c.pos, z: 0 } })),
+    };
+    const heights = [...buildBlockout(level, mask, tones).heights.slice(0, 3)];
+    expect(heights).toEqual([0, TONE_LIFT[2], TONE_LIFT[3]]);
   });
 });

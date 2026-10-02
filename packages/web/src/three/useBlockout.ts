@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import type { MapData } from "@replay-lab/shared";
-import { buildBlockout, maskFromAlpha, type Blockout } from "./blockout.js";
+import { buildBlockout, tonesFromImage, type Blockout } from "./blockout.js";
 
-type State =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | { status: "ready"; blockout: Blockout };
+type Ready = { status: "ready"; blockout: Blockout; image: HTMLImageElement };
+type State = { status: "loading" } | { status: "error"; message: string } | Ready;
 
-const cache = new Map<string, Blockout>();
+const cache = new Map<string, Ready>();
 
-/** Loads the minimap, samples its footprint, and builds the blockout once per map. */
+/** Loads the minimap, samples its footprint and tones, and builds the blockout once per map. */
 export function useBlockout(map: MapData, minimapUrl: string | undefined): State {
   // Only async results are kept in state; cache hits and missing URLs are derived.
   const [failed, setFailed] = useState<{ key: string; message: string }>();
@@ -33,8 +31,15 @@ export function useBlockout(map: MapData, minimapUrl: string | undefined): State
         if (!ctx) throw new Error("no 2d context");
         ctx.drawImage(img, 0, 0, size, size);
         const data = ctx.getImageData(0, 0, size, size).data;
-        const mask = maskFromAlpha((x, y) => data[(y * size + x) * 4 + 3] ?? 0, size);
-        cache.set(map.mapPath, buildBlockout(map, mask));
+        const { mask, tones } = tonesFromImage((x, y) => {
+          const o = (y * size + x) * 4;
+          return [data[o] ?? 0, data[o + 1] ?? 0, data[o + 2] ?? 0, data[o + 3] ?? 0] as const;
+        }, size);
+        cache.set(map.mapPath, {
+          status: "ready",
+          blockout: buildBlockout(map, mask, tones),
+          image: img,
+        });
         setBuilt((n) => n + 1);
       } catch {
         setFailed({ key, message: "Couldn't read the minimap to build the 3D view." });
@@ -49,7 +54,7 @@ export function useBlockout(map: MapData, minimapUrl: string | undefined): State
     };
   }, [map, minimapUrl, key]);
 
-  if (cached) return { status: "ready", blockout: cached };
+  if (cached) return cached;
   if (!minimapUrl) {
     return {
       status: "error",
