@@ -49,7 +49,8 @@ What the Riot API gives us vs. what we derive.
 
 ## Fixtures
 
-`fixtures/src/generate.ts` produces synthetic matches in the `MatchDto` shape, validated against
+`fixtures/src/generate.ts` produces synthetic matches in the `MatchDto` shape. Duels need a sight
+line on the map's walkable footprint (see DECISIONS.md). Matches are validated against
 `MatchSchema` on write. All ids (puuids, agents, weapons, armor) are fake, and positions come from
 made-up zones inside a plausible coordinate box. They do **not** follow real map geometry, so they
 can't be used to check minimap calibration.

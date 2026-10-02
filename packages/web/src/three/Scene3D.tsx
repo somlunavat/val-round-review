@@ -73,6 +73,8 @@ export default function Scene3D(props: Scene3DProps) {
             y={mapping.floorAt(props.plant.pos)}
             unit={mapping.unit}
             active={!props.defused}
+            // Overview exaggerates it so it reads from far away; POV shows it near real size.
+            scale={pov ? 0.45 : 1.6}
           />
         )}
 
@@ -85,6 +87,10 @@ export default function Scene3D(props: Scene3DProps) {
             selfTeam={props.selfTeam}
             selfPuuid={props.selfPuuid}
             hide={pov ? props.subject : undefined}
+            // In POV the subject's teammates are ghosted so they don't block the view.
+            ghostTeam={
+              pov ? props.snapshot.players.find((p) => p.puuid === props.subject)?.team : undefined
+            }
             scale={scale}
           />
         )}
@@ -164,6 +170,7 @@ function PlayersLayer({
   selfTeam,
   selfPuuid,
   hide,
+  ghostTeam,
   scale,
 }: {
   snapshot: Snapshot;
@@ -173,6 +180,7 @@ function PlayersLayer({
   selfTeam: TeamSide | undefined;
   selfPuuid: string;
   hide: string | undefined;
+  ghostTeam: TeamSide | undefined;
   scale: number;
 }) {
   const r = PLAYER_RADIUS * mapping.unit * scale;
@@ -210,6 +218,7 @@ function PlayersLayer({
             color={p.team === selfTeam ? ALLY : ENEMY}
             isSelf={p.puuid === selfPuuid}
             stale={stale}
+            ghost={p.team === ghostTeam}
           />
         ))}
     </group>
@@ -224,6 +233,7 @@ function PlayerCapsule({
   color,
   isSelf,
   stale,
+  ghost,
 }: {
   player: SnapshotPlayer;
   mapping: SceneMapping;
@@ -232,11 +242,12 @@ function PlayerCapsule({
   color: string;
   isSelf: boolean;
   stale: boolean;
+  ghost: boolean;
 }) {
   const s = mapping.toScene(player.pos);
   const y = mapping.floorAt(player.pos);
   const dead = !player.alive;
-  const opacity = (dead ? 0.55 : 1) * (stale ? 0.55 : 1);
+  const opacity = (dead ? 0.55 : 1) * (stale ? 0.55 : 1) * (ghost ? 0.25 : 1);
   return (
     <group position={[s.x, y, s.z]}>
       {dead ? (
@@ -254,7 +265,13 @@ function PlayerCapsule({
       ) : (
         <mesh position={[0, height / 2, 0]}>
           <capsuleGeometry args={[radius, height - radius * 2, 4, 10]} />
-          <meshStandardMaterial color={color} flatShading transparent opacity={opacity} />
+          <meshStandardMaterial
+            color={color}
+            flatShading
+            transparent
+            opacity={opacity}
+            depthWrite={!ghost}
+          />
         </mesh>
       )}
       {isSelf && (
@@ -277,14 +294,16 @@ function SpikeMarker({
   y,
   unit,
   active,
+  scale,
 }: {
   at: { x: number; z: number };
   y: number;
   unit: number;
   active: boolean;
+  scale: number;
 }) {
   const ref = useRef<THREE.Mesh>(null);
-  const size = 60 * unit * 1.6;
+  const size = 60 * unit * scale;
   useFrame(({ clock }) => {
     if (ref.current) ref.current.rotation.y = clock.elapsedTime * 1.5;
   });

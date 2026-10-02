@@ -147,3 +147,28 @@ game's general visual language:
 It does **not** use Riot's logo, wordmark, or proprietary fonts. Our mark is a reticle with a rewind
 chevron, deliberately unlike the game's logo. Agent portraits, icons, and minimaps are hot-linked
 under the fan-content policy (see ASSETS.md).
+
+## Sample kills need a sight line
+
+Sample duels used to pair any two players, so kills happened across the map through walls. Now a
+duel needs both of these:
+
+- **Range:** the two players are within 2,200 units of each other, roughly the width of a site.
+- **Sight line:** the straight line between them stays on walkable floor. "Walkable" comes from the
+  same minimap footprint the 3D blockout uses (`shared/walkable.ts`), so a sample kill always shows a
+  clear line in the 3D view.
+
+The rounds also play out more like real ones:
+
+- Attackers plant only after someone reaches the site.
+- First contact near a site pulls the defenders over.
+- Late in the round, attackers regroup on the site.
+- Positions stay on walkable floor.
+
+The footprints are decoded from the hot-linked minimap PNGs by a tiny zlib-based decoder (no new
+dependency). They are cached in `fixtures/.cache/`, which git ignores. Tests that need them (exact
+regeneration and the sight-line check) are skipped when the cache is missing, for example in CI.
+The other fixture tests run on the committed JSON.
+
+In POV, the subject's teammates are drawn as faint ghosts, and the spike is drawn near real size so
+it doesn't fill the view.

@@ -1,4 +1,12 @@
-export { generateMatch, fixtureSet, SELF_PUUID, FIXTURE_MAP } from "./generate.js";
+export {
+  generateMatch,
+  fixtureSet,
+  routesFor,
+  SELF_PUUID,
+  FIXTURE_MAP,
+  FIXTURE_MAPS,
+} from "./generate.js";
+export { cachedMasks, loadMasks } from "./masks.js";
 export type { GenerateOptions, EdgeCaseOptions } from "./generate.js";
 
 import { fileURLToPath } from "node:url";

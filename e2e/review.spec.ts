@@ -5,7 +5,10 @@ test("pick a match, a round, and jump to an event", async ({ page }) => {
   await expect(page.getByText(/isn't endorsed by Riot Games/)).toBeVisible();
   await expect(page.getByText("Sample data")).toBeVisible();
 
-  await page.getByRole("button", { name: /Ascent 13–11 win/ }).click();
+  await page
+    .getByRole("button", { name: /Ascent 13–11 win/ })
+    .last()
+    .click();
   await expect(page.getByRole("heading", { name: "Ascent" })).toBeVisible();
   await expect(page.getByText(/No positions yet/)).toBeVisible();
 
@@ -27,7 +30,10 @@ test("3D view builds a blockout and switches to a killer's POV", async ({ page }
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.goto("/");
-  await page.getByRole("button", { name: /Ascent 13–11 win/ }).click();
+  await page
+    .getByRole("button", { name: /Ascent 13–11 win/ })
+    .last()
+    .click();
   await page
     .getByRole("button", { name: /^Jump to/ })
     .first()

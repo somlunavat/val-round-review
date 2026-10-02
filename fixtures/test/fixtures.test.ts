@@ -1,18 +1,44 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { MatchSchema } from "@replay-lab/shared";
-import { FIXTURE_MATCHES_DIR, SELF_PUUID, fixtureSet } from "../src/index.js";
+import { MatchSchema, lineOfSight, mapData, type Match } from "@replay-lab/shared";
+import { FIXTURE_MATCHES_DIR, SELF_PUUID, cachedMasks, fixtureSet } from "../src/index.js";
 
-const matches = fixtureSet();
+// Property checks run on the committed files, which is what the app serves.
+const matches: Match[] = readdirSync(FIXTURE_MATCHES_DIR)
+  .filter((f) => f.endsWith(".json"))
+  .sort()
+  .map((f) => MatchSchema.parse(JSON.parse(readFileSync(join(FIXTURE_MATCHES_DIR, f), "utf8"))));
+
+// Minimap masks are fetched by `pnpm fixtures:gen` and cached outside git. Without
+// them (e.g. in CI) the generator can't reproduce the sight-line checks.
+const masks = cachedMasks();
 
 describe("fixture generator", () => {
-  it("is deterministic and matches the committed files", () => {
-    for (const m of matches) {
+  it.skipIf(!masks)("is deterministic and matches the committed files", () => {
+    for (const m of fixtureSet(masks)) {
       const file = join(FIXTURE_MATCHES_DIR, `${m.matchInfo.matchId}.json`);
       const committed: unknown = JSON.parse(readFileSync(file, "utf8"));
       const fresh: unknown = JSON.parse(JSON.stringify(m));
       expect(committed, `${file} is stale; run pnpm fixtures:gen`).toEqual(fresh);
+    }
+  });
+
+  it.skipIf(!masks)("only has kills with a clear sight line on the map footprint", () => {
+    for (const m of matches) {
+      const map = mapData(m.matchInfo.mapId);
+      const mask = masks?.get(m.matchInfo.mapId);
+      if (!map || !mask) continue;
+      for (const r of m.roundResults) {
+        for (const k of r.playerStats.flatMap((p) => p.kills ?? [])) {
+          const killer = k.playerLocations?.find((p) => p.puuid === k.killer)?.location;
+          if (!killer) continue;
+          expect(
+            lineOfSight(mask, map, killer, k.victimLocation),
+            `${m.matchInfo.matchId} round ${r.roundNum} at ${k.timeSinceRoundStartMillis}`,
+          ).toBe(true);
+        }
+      }
     }
   });
 
@@ -29,6 +55,34 @@ describe("fixture generator", () => {
     const results = new Set(matches.flatMap((m) => m.roundResults.map((r) => r.roundResult)));
     for (const r of ["Eliminated", "Bomb detonated", "Bomb defused", "Round timer expired"]) {
       expect(results).toContain(r);
+    }
+  });
+
+  it("only has kills between players within engagement range", () => {
+    for (const m of matches) {
+      for (const r of m.roundResults) {
+        for (const k of r.playerStats.flatMap((p) => p.kills ?? [])) {
+          const killer = k.playerLocations?.find((p) => p.puuid === k.killer)?.location;
+          if (!killer) continue;
+          const d = Math.hypot(killer.x - k.victimLocation.x, killer.y - k.victimLocation.y);
+          // 2200 engagement range plus position jitter.
+          expect(d, `${m.matchInfo.matchId} round ${r.roundNum}`).toBeLessThan(2500);
+        }
+      }
+    }
+  });
+
+  it("plants the spike near a site", () => {
+    for (const m of matches) {
+      const map = mapData(m.matchInfo.mapId);
+      if (!map) throw new Error(`no map data for ${m.matchInfo.mapId}`);
+      const sites = map.callouts.filter((c) => c.name === "Site");
+      for (const r of m.roundResults.filter((x) => x.bombPlanter)) {
+        const at = r.plantLocation;
+        if (!at) continue;
+        const nearest = Math.min(...sites.map((c) => Math.hypot(c.pos.x - at.x, c.pos.y - at.y)));
+        expect(nearest).toBeLessThan(800);
+      }
     }
   });
 

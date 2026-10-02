@@ -7,7 +7,15 @@
  * map's callout points (see docs/ASSETS.md) and jump between waypoints, so snapshots land in
  * playable areas.
  */
-import { mapData, type Callout, type MapData } from "@replay-lab/shared";
+import {
+  isWalkable,
+  lineOfSight,
+  mapData,
+  snapToWalkable,
+  type Callout,
+  type MapData,
+  type Mask,
+} from "@replay-lab/shared";
 import type {
   Economy,
   Kill,
@@ -20,6 +28,13 @@ import type {
 
 export const SELF_PUUID = "fx-self-0000-0000-0000-000000000000";
 export const FIXTURE_MAP = "/Game/Maps/Ascent/Ascent";
+/** Every map the fixture set uses. */
+export const FIXTURE_MAPS = [
+  FIXTURE_MAP,
+  "/Game/Maps/Triad/Triad",
+  "/Game/Maps/Duality/Duality",
+  "/Game/Maps/Jam/Jam",
+];
 
 type Side = "Blue" | "Red";
 type Vec = { x: number; y: number };
@@ -106,6 +121,8 @@ const AGENTS = [
 ];
 
 const ROUND_LIMIT_MS = 100_000;
+/** Max distance (game units) between two players for a duel; roughly a site's width. */
+const ENGAGE_RANGE = 2200;
 const SPIKE_TIMER_MS = 45_000;
 
 /** mulberry32: small, fast, deterministic. */
@@ -141,6 +158,11 @@ export type GenerateOptions = {
   includeSelf: boolean;
   /** Map path; defaults to Ascent. Any map with spawn and site callouts works. */
   mapPath?: string;
+  /**
+   * Walkable footprint for the map. With it, positions stay on walkable floor and
+   * duels need a clear sight line, matching what the 3D blockout shows.
+   */
+  mask?: Mask;
   edge?: EdgeCaseOptions;
 };
 
@@ -168,10 +190,14 @@ export function generateMatch(opts: GenerateOptions): Match {
   const routes = routesFor(map);
   const edge = opts.edge ?? {};
   const between = (lo: number, hi: number) => lo + rand() * (hi - lo);
-  const near = (p: Vec, r: number): Vec => ({
-    x: Math.round(p.x + between(-r, r)),
-    y: Math.round(p.y + between(-r, r)),
-  });
+  const mask = opts.mask;
+  const near = (p: Vec, r: number): Vec => {
+    for (let tries = 0; tries < 8; tries++) {
+      const q = { x: Math.round(p.x + between(-r, r)), y: Math.round(p.y + between(-r, r)) };
+      if (!mask || isWalkable(mask, map, q)) return q;
+    }
+    return mask ? snapToWalkable(mask, map, p) : p;
+  };
   const pick = <T>(xs: readonly T[]): T => {
     const x = xs[Math.floor(rand() * xs.length)];
     if (x === undefined) throw new Error("pick from empty list");
@@ -288,7 +314,7 @@ export function generateMatch(opts: GenerateOptions): Match {
       s.route = [{ at, pos: spawn }];
       for (const wp of path) {
         at += Math.round(between(6_000, 12_000));
-        s.route.push({ at, pos: near(wp, 280) });
+        s.route.push({ at, pos: near(wp, 180) });
       }
     }
 
@@ -298,28 +324,56 @@ export function generateMatch(opts: GenerateOptions): Match {
       return best?.pos ?? routes.atkSpawn;
     };
     const posAt = (s: PlayerState, t: number): Vec => near(waypointAt(s, t), 60);
-    /** Duels mostly happen between players who are actually near each other. */
-    const opponentFor = (a: PlayerState, pool: PlayerState[], t: number): PlayerState => {
-      if (rand() < 0.2) return pick(pool);
-      const from = waypointAt(a, t);
-      const dist = (s: PlayerState) => {
-        const p = waypointAt(s, t);
-        return Math.hypot(p.x - from.x, p.y - from.y);
-      };
-      return [...pool].sort((x, y) => dist(x) - dist(y))[0] ?? pick(pool);
+    const gap = (a: PlayerState, b: PlayerState, t: number) => {
+      const p = waypointAt(a, t);
+      const q = waypointAt(b, t);
+      return Math.hypot(p.x - q.x, p.y - q.y);
     };
-    /** After a plant everyone converges on the site: attackers to hold, defenders to retake. */
-    const convergeOnSite = (from: number) => {
+    /**
+     * Pairs that can actually fight: within engagement range of each other.
+     * Closer pairs are more likely, so most kills are short-to-mid range.
+     */
+    const pickDuel = (atk: PlayerState[], def: PlayerState[], t: number) => {
+      const pairs: { a: PlayerState; d: PlayerState; w: number }[] = [];
+      for (const a of atk) {
+        for (const d of def) {
+          const g = gap(a, d, t);
+          if (g >= ENGAGE_RANGE) continue;
+          if (mask && !lineOfSight(mask, map, waypointAt(a, t), waypointAt(d, t))) continue;
+          pairs.push({ a, d, w: 1 / (g + 400) });
+        }
+      }
+      const total = pairs.reduce((sum, p) => sum + p.w, 0);
+      let r = rand() * total;
+      for (const p of pairs) {
+        r -= p.w;
+        if (r <= 0) return p;
+      }
+      return pairs.at(-1);
+    };
+    /** Sends players (all, or one side) to the site, dropping any later waypoints. */
+    const sendToSite = (from: number, who: (s: PlayerState) => boolean, radius: number) => {
       for (const s of all()) {
-        if (!s.alive || s.puuid === edge.afkPuuid) continue;
+        if (!s.alive || s.puuid === edge.afkPuuid || !who(s)) continue;
         s.route = s.route.filter((wp) => wp.at <= from);
         s.route.push({
-          at: from + Math.round(between(4_000, 14_000)),
-          pos: near(sitePos, 600),
+          at: from + Math.round(between(4_000, 12_000)),
+          pos: near(sitePos, radius),
         });
       }
     };
-    const locations = (t: number, extra?: PlayerState): PlayerLocations[] =>
+    const distTo = (s: PlayerState, t: number, p: Vec) => {
+      const q = waypointAt(s, t);
+      return Math.hypot(p.x - q.x, p.y - q.y);
+    };
+    /** After a plant everyone converges on the site: attackers to hold, defenders to retake. */
+    const convergeOnSite = (from: number) => sendToSite(from, () => true, 600);
+    /** Everyone alive (plus `extra`); `exact` players are reported at their waypoint, unjittered. */
+    const locations = (
+      t: number,
+      extra?: PlayerState,
+      exact: PlayerState[] = [],
+    ): PlayerLocations[] =>
       all()
         .filter((s) => s.alive || s === extra)
         .map((s) => ({
@@ -327,7 +381,7 @@ export function generateMatch(opts: GenerateOptions): Match {
           ...(edge.omitViewRadians
             ? {}
             : { viewRadians: Number(between(0, Math.PI * 2).toFixed(4)) }),
-          location: posAt(s, t),
+          location: exact.includes(s) ? waypointAt(s, t) : posAt(s, t),
         }));
     const aliveOn = (team: Side) => all().filter((s) => s.team === team && s.alive);
 
@@ -343,6 +397,8 @@ export function generateMatch(opts: GenerateOptions): Match {
     let winner: Side;
 
     const forceNoKills = edge.noKillRounds?.includes(roundNum) ?? false;
+    let rotated = false;
+    let executed = false;
 
     for (;;) {
       if (forceNoKills) {
@@ -364,9 +420,18 @@ export function generateMatch(opts: GenerateOptions): Match {
         break;
       }
 
-      // Plant once attackers have reached the site.
-      if (!planter && t > 25_000 && rand() < 0.35) {
-        const p = pick(active(atk));
+      // Late in the round, lurkers and mid players regroup on the site.
+      if (!planter && !executed && t > 45_000) {
+        executed = true;
+        sendToSite(t, (s) => s.team === attackers && distTo(s, t, sitePos) > 1500, 500);
+      }
+
+      // Plant once an attacker has actually reached the site.
+      const onSite = active(atk).filter(
+        (s) => s.puuid !== edge.afkPuuid && distTo(s, t, sitePos) < 1100,
+      );
+      if (!planter && onSite.length > 0 && rand() < 0.6) {
+        const p = pick(onSite);
         planter = p;
         plantTime = Math.round(t + between(1_000, 4_000));
         t = plantTime;
@@ -423,13 +488,23 @@ export function generateMatch(opts: GenerateOptions): Match {
         break;
       }
 
-      const a = pick(atk);
-      const d = opponentFor(a, def, t);
+      const duel = pickDuel(atk, def, t);
+      if (!duel) continue; // Nobody in contact yet; time moves on.
+      const { a, d } = duel;
+      // First contact near the site pulls the remaining defenders over.
+      if (!rotated && !planter && distTo(a, t, sitePos) < 3000) {
+        rotated = true;
+        sendToSite(t, (s) => s.team === defenders && distTo(s, t, sitePos) > 2500, 900);
+      }
       // Attackers holding a planted spike have the positional edge.
       const aPower = a.weaponPower * (planter ? 1.8 : 1);
       const pA = aPower / (aPower + d.weaponPower || 1);
       const [killer, victim] = rand() < pA ? [a, d] : [d, a];
-      const pl = edge.missingPlayerLocationsRound === roundNum ? undefined : locations(t, victim);
+      // The duelling pair is reported exactly where the sight-line check was made.
+      const pl =
+        edge.missingPlayerLocationsRound === roundNum
+          ? undefined
+          : locations(t, victim, [killer, victim]);
       const assistants = aliveOn(killer.team)
         .filter((s) => s !== killer && rand() < 0.2)
         .map((s) => s.puuid);
@@ -439,7 +514,7 @@ export function generateMatch(opts: GenerateOptions): Match {
         timeSinceRoundStartMillis: t,
         killer: killer.puuid,
         victim: victim.puuid,
-        victimLocation: posAt(victim, t),
+        victimLocation: waypointAt(victim, t),
         assistants,
         ...(pl ? { playerLocations: pl } : {}),
         finishingDamage: {
@@ -580,61 +655,79 @@ export function generateMatch(opts: GenerateOptions): Match {
  * The fixture set written to fixtures/matches. Seeds are chosen for close, varied games
  * (a mix of eliminations, detonations, and defuses).
  */
-export function fixtureSet(): Match[] {
+export function fixtureSet(masks?: ReadonlyMap<string, Mask>): Match[] {
+  const withMask = (o: GenerateOptions): GenerateOptions => {
+    const mask = masks?.get(o.mapPath ?? FIXTURE_MAP);
+    return mask ? { ...o, mask } : o;
+  };
   return [
-    generateMatch({
-      seed: 7,
-      matchId: "fx-match-0001-standard",
-      gameStartMillis: Date.UTC(2026, 8, 20, 18, 0),
-      includeSelf: true,
-    }),
-    generateMatch({
-      seed: 5,
-      matchId: "fx-match-0002-overtime",
-      gameStartMillis: Date.UTC(2026, 8, 21, 19, 30),
-      includeSelf: true,
-    }),
-    generateMatch({
-      seed: 13,
-      matchId: "fx-match-0003-edge-cases",
-      gameStartMillis: Date.UTC(2026, 8, 22, 20, 15),
-      includeSelf: true,
-      edge: {
-        afkPuuid: "fx-13-red-4-0000-000000000000",
-        noKillRounds: [3],
-        missingEconomyRound: 5,
-        omitViewRadians: true,
-        missingPlayerLocationsRound: 7,
-      },
-    }),
+    generateMatch(
+      withMask({
+        seed: 12,
+        matchId: "fx-match-0001-standard",
+        gameStartMillis: Date.UTC(2026, 8, 20, 18, 0),
+        includeSelf: true,
+      }),
+    ),
+    generateMatch(
+      withMask({
+        seed: 15,
+        matchId: "fx-match-0002-overtime",
+        gameStartMillis: Date.UTC(2026, 8, 21, 19, 30),
+        includeSelf: true,
+      }),
+    ),
+    generateMatch(
+      withMask({
+        seed: 13,
+        matchId: "fx-match-0003-edge-cases",
+        gameStartMillis: Date.UTC(2026, 8, 22, 20, 15),
+        includeSelf: true,
+        edge: {
+          afkPuuid: "fx-13-red-4-0000-000000000000",
+          noKillRounds: [3],
+          missingEconomyRound: 5,
+          omitViewRadians: true,
+          missingPlayerLocationsRound: 7,
+        },
+      }),
+    ),
     // Other maps, so every view can be tried beyond Ascent.
-    generateMatch({
-      seed: 4,
-      matchId: "fx-match-0005-haven",
-      gameStartMillis: Date.UTC(2026, 8, 24, 18, 30),
-      includeSelf: true,
-      mapPath: "/Game/Maps/Triad/Triad",
-    }),
-    generateMatch({
-      seed: 11,
-      matchId: "fx-match-0006-bind",
-      gameStartMillis: Date.UTC(2026, 8, 25, 20, 0),
-      includeSelf: true,
-      mapPath: "/Game/Maps/Duality/Duality",
-    }),
-    generateMatch({
-      seed: 6,
-      matchId: "fx-match-0007-lotus",
-      gameStartMillis: Date.UTC(2026, 8, 26, 21, 45),
-      includeSelf: true,
-      mapPath: "/Game/Maps/Jam/Jam",
-    }),
+    generateMatch(
+      withMask({
+        seed: 13,
+        matchId: "fx-match-0005-haven",
+        gameStartMillis: Date.UTC(2026, 8, 24, 18, 30),
+        includeSelf: true,
+        mapPath: "/Game/Maps/Triad/Triad",
+      }),
+    ),
+    generateMatch(
+      withMask({
+        seed: 12,
+        matchId: "fx-match-0006-bind",
+        gameStartMillis: Date.UTC(2026, 8, 25, 20, 0),
+        includeSelf: true,
+        mapPath: "/Game/Maps/Duality/Duality",
+      }),
+    ),
+    generateMatch(
+      withMask({
+        seed: 19,
+        matchId: "fx-match-0007-lotus",
+        gameStartMillis: Date.UTC(2026, 8, 26, 21, 45),
+        includeSelf: true,
+        mapPath: "/Game/Maps/Jam/Jam",
+      }),
+    ),
     // A match the fixture player was not in: the API must refuse to serve it.
-    generateMatch({
-      seed: 3,
-      matchId: "fx-match-0004-not-own",
-      gameStartMillis: Date.UTC(2026, 8, 23, 21, 0),
-      includeSelf: false,
-    }),
+    generateMatch(
+      withMask({
+        seed: 3,
+        matchId: "fx-match-0004-not-own",
+        gameStartMillis: Date.UTC(2026, 8, 23, 21, 0),
+        includeSelf: false,
+      }),
+    ),
   ];
 }
