@@ -1,7 +1,7 @@
 # Assets
 
 Every image, model, font, or data file that did not originate in this repo must be listed here
-with its source and license. No assets extracted from the game client, ever (CLAUDE.md §2.3).
+with its source and license. No assets extracted from the game client, ever (project rules).
 
 | Asset                                                                                                                                       | Path                                                                                                                        | Source                                                                      | License / terms                                                                                                                                                                                       | Added      |
 | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |

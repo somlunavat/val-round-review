@@ -22,7 +22,7 @@ Riot client, where caching actually matters.
 
 `MatchReplay.players` has puuid, team, agent, and `isSelf`, but no `gameName`/`tagLine`. The
 minimap needs to tell players apart, but the app is for reviewing your own play, and names would
-make it easier to use as a scouting tool (CLAUDE.md §2.1). The schema extends the CLAUDE.md §6.3
+make it easier to use as a scouting tool (project rule: own data only). The schema extends the original
 sketch with `players`, `selfPuuid`, `gameStartMillis`, and `RoundReplay.afk`.
 
 ## Ownership is enforced in one place
@@ -46,12 +46,10 @@ justifies.
 ## Official 2D images under Riot's fan policy (owner decision, 2026-10-01)
 
 At first the 2D view used no minimap image, because valorant-api.com's images are taken from the
-game client and CLAUDE.md §2.3 ruled them out. The project owner then chose to use the real
+game client and the project rules ruled them out. The project owner then chose to use the real
 minimap. Riot's "Legal Jibber Jabber" policy allows Riot assets in free fan projects that show its
 notice, so 2D images (minimap, map thumbnails, agent and weapon icons) are now hot-linked from
 valorant-api.com and never committed. 3D assets ripped from the client are still out.
-**CLAUDE.md §2.3 still has the old wording and needs the owner to update it** (the assistant
-isn't allowed to edit CLAUDE.md).
 
 Overlaying the official minimap also checks the calibration by eye: all 22 Ascent callout
 points land on the matching areas of the image.
@@ -74,7 +72,7 @@ Playwright's Chromium.
 ## Live Riot client before review features (owner request)
 
 The owner asked for real data before the review flags, so the live adapter was moved ahead of the
-CLAUDE.md phase order. It works now, but development keys can't read VAL-MATCH-V1, so real
+planned phase order. It works now, but development keys can't read VAL-MATCH-V1, so real
 matches need an approved production key. Until then the UI shows Riot's 403 with an explanation.
 
 ## Owner identity from RIOT_ID until RSO
@@ -102,7 +100,7 @@ still never sent to the browser. When content is unavailable, labels fall back t
 
 ## Procedural 3D blockouts for every map
 
-CLAUDE.md §8 says to start with one hand-built map. The owner asked for every map, and
+The original plan was to start with one hand-built map. The owner asked for every map, and
 hand-modelling 13 maps wouldn't scale, so each blockout is generated from data we already have:
 the minimap's walkable footprint and the callout heights. Ascent was checked first, then Haven,
 Bind, and Lotus. The geometry is approximate: lanes and sites are in the right place, but heights
