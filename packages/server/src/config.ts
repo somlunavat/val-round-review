@@ -8,12 +8,14 @@ import { LiveRiotClient } from "./riot/LiveRiotClient.js";
 import { RateLimiter, parseLimits } from "./riot/rateLimit.js";
 import type { RiotClient } from "./riot/RiotClient.js";
 import { fixedSession, lazySession, type SessionResolver } from "./session.js";
+import { StratStore } from "./strats/StratStore.js";
 
 export type AppDeps = {
   riot: RiotClient;
   session: SessionResolver;
   content: () => Promise<Content>;
   maxMatches: number;
+  strats: StratStore;
 };
 
 const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
@@ -28,6 +30,7 @@ export async function depsFromEnv(env: NodeJS.ProcessEnv = process.env): Promise
   const source = env.RIOT_SOURCE ?? "fixture";
   const maxMatches = Number(env.MAX_MATCHES ?? 10);
   const content = contentProvider();
+  const strats = new StratStore(env.STRATS_PATH ?? join(REPO_ROOT, ".cache", "strats.sqlite"));
 
   if (source === "fixture") {
     // Imported only in fixture mode so live deployments never load sample data.
@@ -41,6 +44,7 @@ export async function depsFromEnv(env: NodeJS.ProcessEnv = process.env): Promise
       }),
       content,
       maxMatches,
+      strats,
     };
   }
 
@@ -76,5 +80,6 @@ export async function depsFromEnv(env: NodeJS.ProcessEnv = process.env): Promise
     }),
     content,
     maxMatches,
+    strats,
   };
 }

@@ -172,3 +172,38 @@ The other fixture tests run on the committed JSON.
 
 In POV, the subject's teammates are drawn as faint ghosts, and the spike is drawn near real size so
 it doesn't fill the view.
+
+## 3D maps use the minimap's tones
+
+Each minimap encodes local detail in its greys: base floor, low cover (boxes, pillars, small
+platforms), higher ground, plant-site tint, and outlines. The blockout now samples those tones on a
+256-cell grid:
+
+- **Heights:** low cover is lifted 110 units and high ground 230 above a regional base. The base is
+  blended only from callouts standing on base floor, so heights aren't counted twice.
+- **Floor texture:** floor tops show the minimap projected straight down in world space, so site
+  markings and box outlines line up with the raised geometry.
+- **Palettes:** each map gets its own palette (sandstone on Bind, ice on Icebox, and so on).
+
+All geometry is still ours and generated at runtime. The minimap is a 2D image used under the
+fan-content policy, hot-linked and never committed. Tone→height is a heuristic, not survey data.
+
+## Strat board
+
+A whiteboard per map, with:
+
+- agent tokens (yours or enemy);
+- freehand lines and route arrows;
+- text;
+- utility markers (smoke, flash, molly, recon, wall);
+- up to 12 steps per strat, where a new step keeps the previous step's agent positions;
+- notes;
+- undo/redo and keyboard shortcuts.
+
+Coordinates are normalized to the minimap (0–1), not game units, so a strat doesn't depend on
+calibration.
+
+Strats are saved on the server in SQLite (`.cache/strats.sqlite`), keyed by the signed-in player's
+puuid, like match data: every route is scoped to the session, and another player's strat looks like
+it doesn't exist. They autosave 0.7 s after each edit. Bodies are validated with `StratSchema`
+(size-capped) before storing.

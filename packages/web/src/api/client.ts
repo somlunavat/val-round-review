@@ -3,6 +3,10 @@ import {
   ApiErrorSchema,
   ContentSchema,
   SessionInfoSchema,
+  StratSchema,
+  StratSummarySchema,
+  type Strat,
+  type StratSummary,
   type Content,
   type SessionInfo,
   MatchReplaySchema,
@@ -52,6 +56,42 @@ export function fetchSession(): Promise<SessionInfo> {
 
 export function fetchContent(): Promise<Content> {
   return getJson("/api/content", ContentSchema);
+}
+
+export function fetchStrats(): Promise<StratSummary[]> {
+  return getJson("/api/strats", StratSummarySchema.array());
+}
+
+export function fetchStrat(id: string): Promise<Strat> {
+  return getJson(`/api/strats/${encodeURIComponent(id)}`, StratSchema);
+}
+
+async function send(method: "PUT" | "DELETE", url: string, body?: unknown): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      ...(body === undefined
+        ? {}
+        : { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+    });
+  } catch {
+    throw new ApiRequestError("Can't reach the server. Is it running?");
+  }
+  if (!res.ok) {
+    const err = ApiErrorSchema.safeParse(await res.json().catch(() => undefined));
+    throw new ApiRequestError(
+      err.success ? err.data.error.message : `Request failed (${res.status})`,
+    );
+  }
+}
+
+export function saveStrat(strat: Strat): Promise<void> {
+  return send("PUT", `/api/strats/${encodeURIComponent(strat.id)}`, strat);
+}
+
+export function deleteStrat(id: string): Promise<void> {
+  return send("DELETE", `/api/strats/${encodeURIComponent(id)}`);
 }
 
 export function errorMessage(err: unknown): string {

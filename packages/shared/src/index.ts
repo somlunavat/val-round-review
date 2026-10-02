@@ -3,3 +3,4 @@ export * from "./replay.js";
 export * from "./maps.js";
 export * from "./content.js";
 export * from "./walkable.js";
+export * from "./strats.js";

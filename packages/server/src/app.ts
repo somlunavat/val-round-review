@@ -4,6 +4,7 @@ import type { AppDeps } from "./config.js";
 import { RiotApiError } from "./riot/errors.js";
 import { contentRoutes } from "./routes/content.js";
 import { mapRoutes } from "./routes/maps.js";
+import { stratRoutes } from "./routes/strats.js";
 import { matchRoutes } from "./routes/matches.js";
 
 export function buildApp(deps: AppDeps): FastifyInstance {
@@ -19,6 +20,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   matchRoutes(app, deps);
   mapRoutes(app);
   contentRoutes(app, deps);
+  stratRoutes(app, deps);
 
   app.setNotFoundHandler((_req, reply) => {
     const body: ApiError = { error: { code: "NOT_FOUND", message: "Route not found" } };

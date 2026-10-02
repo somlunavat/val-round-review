@@ -5,11 +5,12 @@ import { buildApp } from "../src/app.js";
 import { EMPTY_CONTENT } from "../src/content/valorantApi.js";
 import { RiotApiError } from "../src/riot/errors.js";
 import { FixtureRiotClient } from "../src/riot/FixtureRiotClient.js";
+import { StratStore } from "../src/strats/StratStore.js";
 import { fixedSession } from "../src/session.js";
 
 const riot = new FixtureRiotClient(FIXTURE_MATCHES_DIR);
 const content = async () => EMPTY_CONTENT;
-const base = { riot, content, maxMatches: 10 };
+const base = { riot, content, maxMatches: 10, strats: new StratStore(":memory:") };
 const app = buildApp({
   ...base,
   session: fixedSession({ source: "fixture", puuid: SELF_PUUID, riotId: "Sample player" }),

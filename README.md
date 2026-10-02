@@ -3,6 +3,13 @@
 Review key moments from your own VALORANT matches: a 2D round scrubber now, a 3D blockout later.
 See `CLAUDE.md` for the full brief.
 
+## Features
+
+- **Round review:** match history, round timeline, kill feed, economy, scoreboard.
+- **2D minimap and 3D map:** generated per-map low-poly blockouts, with killer's/victim's POV.
+- **Strat board:** pick a map, place agents, draw routes and utility, add steps and notes. Saved
+  per player.
+
 ## Setup
 
 ```sh

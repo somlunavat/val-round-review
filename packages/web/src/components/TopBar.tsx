@@ -1,6 +1,8 @@
 import type { SessionInfo } from "@replay-lab/shared";
+import { useNav } from "../state/nav.js";
 
 export function TopBar({ session }: { session: SessionInfo | undefined }) {
+  const { page, go } = useNav();
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-ink/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-[1680px] items-stretch gap-6 px-4 sm:px-6">
@@ -10,11 +12,26 @@ export function TopBar({ session }: { session: SessionInfo | undefined }) {
             <div className="font-display text-[26px] tracking-[0.08em] text-bone">Replay Lab</div>
           </div>
         </div>
-        <nav className="hidden items-stretch sm:flex" aria-label="Sections">
-          <span className="relative flex items-center px-1 font-cond text-sm font-semibold uppercase tracking-[0.2em] text-bone">
-            Round review
-            <span className="absolute inset-x-0 bottom-0 h-[3px] bg-red" />
-          </span>
+        <nav className="flex items-stretch gap-6" aria-label="Sections">
+          {(
+            [
+              ["review", "Round review"],
+              ["strats", "Strat board"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-current={page === id ? "page" : undefined}
+              onClick={() => go(id)}
+              className={`relative flex items-center px-1 font-cond text-sm font-semibold uppercase tracking-[0.2em] transition ${
+                page === id ? "text-bone" : "text-muted hover:text-soft"
+              }`}
+            >
+              {label}
+              {page === id && <span className="absolute inset-x-0 bottom-0 h-[3px] bg-red" />}
+            </button>
+          ))}
         </nav>
         <div className="ml-auto flex items-center">
           {session && <SourceTag session={session} />}

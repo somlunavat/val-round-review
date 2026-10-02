@@ -53,3 +53,29 @@ test("the API refuses a match the player was not in", async ({ page }) => {
   const res = await page.request.get("/api/matches/fx-match-0004-not-own");
   expect(res.status()).toBe(404);
 });
+
+test("strat board: create, draw, and it persists", async ({ page }) => {
+  await page.goto("/#strats");
+  await page.getByPlaceholder("e.g. A split, fast").fill("E2E strat");
+  await page.getByRole("button", { name: "Ascent", exact: true }).click();
+  const board = page.getByRole("img", { name: /strategy board/ });
+  const box = await board.boundingBox();
+  if (!box) throw new Error("no board");
+  await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.45);
+  await page.getByRole("button", { name: "Smoke" }).click();
+  await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.25);
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 5_000 });
+
+  const list = await page.request.get("/api/strats");
+  const mine = ((await list.json()) as { id: string; title: string }[]).filter(
+    (s) => s.title === "E2E strat",
+  );
+  expect(mine).toHaveLength(1);
+  const id = mine[0]?.id ?? "";
+  const saved = (await (await page.request.get(`/api/strats/${id}`)).json()) as {
+    frames: { tokens: unknown[]; shapes: unknown[] }[];
+  };
+  expect(saved.frames[0]?.tokens).toHaveLength(1);
+  expect(saved.frames[0]?.shapes).toHaveLength(1);
+  await page.request.delete(`/api/strats/${id}`);
+});
