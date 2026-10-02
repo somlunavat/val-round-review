@@ -7,19 +7,23 @@
  * walkable cell meets empty space. The result is our own simplified geometry:
  * it gets lanes and sites roughly right and is approximate everywhere else.
  */
-import type { MapData, Vec2 } from "@replay-lab/shared";
-import { toNormalized } from "../maps/calibration.js";
+import {
+  GRID,
+  maskFromAlpha,
+  toNormalized,
+  type MapData,
+  type Mask,
+  type Vec2,
+} from "@replay-lab/shared";
 
-/** Grid resolution across the minimap. */
-export const GRID = 160;
+export { GRID, maskFromAlpha, type Mask };
+
 /** Scene units across the whole minimap (x and z span 0..SCENE). */
 export const SCENE = 100;
 /** Height snapping step, in game units. */
 const TERRACE = 75;
 /** Wall height above the floor, in game units. */
 export const WALL_HEIGHT = 450;
-
-export type Mask = { size: number; cells: Uint8Array };
 
 export type Rect = {
   /** Grid cell range [i0, i1) × [j0, j1); i is horizontal (u), j vertical (v). */
@@ -50,33 +54,6 @@ export type Blockout = {
   /** Scene units per game unit (horizontal and vertical use the same scale). */
   unit: number;
 };
-
-/** Marks a cell walkable when most of its pixels are opaque. */
-export function maskFromAlpha(
-  alpha: (x: number, y: number) => number,
-  imageSize: number,
-  size = GRID,
-): Mask {
-  const cells = new Uint8Array(size * size);
-  const step = imageSize / size;
-  for (let j = 0; j < size; j++) {
-    for (let i = 0; i < size; i++) {
-      let opaque = 0;
-      let total = 0;
-      // Sample a 3×3 lattice inside the cell.
-      for (let sy = 0; sy < 3; sy++) {
-        for (let sx = 0; sx < 3; sx++) {
-          const x = Math.min(imageSize - 1, Math.floor((i + (sx + 0.5) / 3) * step));
-          const y = Math.min(imageSize - 1, Math.floor((j + (sy + 0.5) / 3) * step));
-          total++;
-          if (alpha(x, y) > 96) opaque++;
-        }
-      }
-      cells[j * size + i] = opaque / total > 0.5 ? 1 : 0;
-    }
-  }
-  return { size, cells };
-}
 
 /** Floor height (game units) at a normalized point, from nearby callout heights. */
 export function heightField(map: MapData): (u: number, v: number) => number {
